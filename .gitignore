@@ -1,0 +1,5 @@
+.DS_Store
+.vercel
+node_modules/
+output/*.mp4
+output/*.wav

@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ANTIGRAVITY // 2026 Motion Design Showreel</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: #07080C; }
+  canvas { display: block; position: absolute; top: 0; left: 0; }
+</style>
+</head>
+<body>
+<canvas id="glScene" width="1920" height="1080" style="display:none"></canvas>
+<canvas id="ui2d" width="1920" height="1080" style="display:none"></canvas>
+<canvas id="glPost" width="1920" height="1080"></canvas>
+
+<script>
+(() => {
+  const W = 1920, H = 1080, FPS = 60, TOTAL_FRAMES = 1800;
+  const BPM = 128.0;
+  const BEAT = 60.0 / BPM;     // 0.46875s
+  const BAR = BEAT * 4.0;      // 1.875s
+
+  // =========================================================================
+  // 1. EASING & MOTION PHYSICS TOOLKIT
+  // =========================================================================
+  const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const invLerp = (a, b, v) => clamp((v - a) / (b - a));
+  const smoothstep = (a, b, v) => { const t = invLerp(a, b, v); return t * t * (3 - 2 * t); };
+  const easeOutExpo = t => t >= 1 ? 1 : 1 - Math.pow(2, -10 * clamp(t));
+  const easeInExpo = t => t <= 0 ? 0 : Math.pow(2, 10 * (clamp(t) - 1));
+  const easeInOutQuart = t => { t = clamp(t); return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2; };
+  const easeOutQuint = t => 1 - Math.pow(1 - clamp(t), 5);
+  const easeOutBack = (t, s = 1.70158) => { t = clamp(t); const u = t - 1; return 1 + (s + 1) * u * u * u + s * u * u; };
+  const springOut = (t, freq = 14, decay = 6.5) => {
+    t = clamp(t);
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    return 1 - Math.exp(-decay * t) * Math.cos(freq * t);
+  };
+
+  // Beat pulse envelope: sharp attack, smooth musical decay
+  function beatPulse(t, period = BEAT, decay = 8.0) {
+    const phase = (t % period + period) % period;
+    return Math.exp(-phase * decay);
+  }
+
+  // Impact impulse helper at specific timestamps
+  function impulseAt(t, tHit, decay = 7.5) {
+    if (t < tHit) return 0;
+    return Math.exp(-(t - tHit) * decay);
+  }
+
+  // =========================================================================
+  // 2. WEBGL2 RAYMARCHING & GENERATIVE SHADER ENGINE
+  // =========================================================================
+  const cScene = document.getElementById("glScene");
+  const gl = cScene.getContext("webgl2", { preserveDrawingBuffer: true, antialias: false });
+
+  const c2d = document.getElementById("ui2d");
+  const ctx = c2d.getContext("2d");
+
+  const cPost = document.getElementById("glPost");
+  const glP = cPost.getContext("webgl2", { preserveDrawingBuffer: true, antialias: false });
+
+  function compileShader(g, type, src) {
+    const s = g.createShader(type);
+    g.shaderSource(s, src);
+    g.compileShader(s);
+    if (!g.getShaderParameter(s, g.COMPILE_STATUS)) {
+      throw new Error(g.getShaderInfoLog(s));
+    }
+    return s;
+  }
+
+  function makeProgram(g, vsSrc, fsSrc) {
+    const p = g.createProgram();
+    g.attachShader(p, compileShader(g, g.VERTEX_SHADER, vsSrc));
+    g.attachShader(p, compileShader(g, g.FRAGMENT_SHADER, fsSrc));
+    g.linkProgram(p);
+    if (!g.getProgramParameter(p, g.LINK_STATUS)) {
+      throw new Error(g.getProgramInfoLog(p));
+    }
+    return p;
+  }
+
+  const QUAD_VS = `#version 300 es
+  in vec2 aPos;
+  out vec2 vUv;
+  void main() {
+    vUv = aPos * 0.5 + 0.5;
+    gl_Position = vec4(aPos, 0.0, 1.0);
+  }`;
+
+  // Scene Fragment Shader: supports 4 rich GPU visual modes blended smoothly by uMode
+  // Mode 0: Cold Open Dark Volumetric Atmosphere
+  // Mode 1: Act II Raymarched Iridescent Liquid Chrome & Twisted Torus SDF + Floor Grid
+  // Mode 2: Act IV Spatial Iridescent Aura Background
+  // Mode 3: Act V Curl/Swirl Energy Tunnel + Neon Vortex + Beat-Reactive Singularity
+  // Mode 4: Act VI Aurora Resolve Halo
+  const SCENE_FS = `#version 300 es
+  precision highp float;
+  in vec2 vUv;
+  out vec4 fragColor;
+
+  uniform float uTime;
+  uniform float uMode;      // 0..4
+  uniform float uBeat;      // 0..1 kick pulse
+  uniform float uSubProg;   // sub-progress inside act
+  uniform vec2 uRes;
+
+  mat2 rot(float a) {
+    float c = cos(a), s = sin(a);
+    return mat2(c, -s, s, c);
+  }
+
+  float smin(float a, float b, float k) {
+    float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+    return mix(b, a, h) - k * h * (1.0 - h);
+  }
+
+  float sdTorus(vec3 p, vec2 t) {
+    vec2 q = vec2(length(p.xz) - t.x, p.y);
+    return length(q) - t.y;
+  }
+
+  float sdOctahedron(vec3 p, float s) {
+    p = abs(p);
+    return (p.x + p.y + p.z - s) * 0.57735027;
+  }
+
+  // Iridescent thin-film palette
+  vec3 iridescence(float cosTheta, float shift) {
+    vec3 a = vec3(0.50, 0.52, 0.62);
+    vec3 b = vec3(0.48, 0.46, 0.50);
+    vec3 c = vec3(1.0, 1.0, 1.0);
+    vec3 d = vec3(0.05, 0.28, 0.58) + shift;
+    return a + b * cos(6.28318 * (c * cosTheta + d));
+  }
+
+  // SDF for Act II Hero Sculpture
+  float mapAct2(vec3 p, float t, float morph, float pulse) {
+    vec3 q = p;
+    q.xz *= rot(t * 0.55);
+    q.xy *= rot(t * 0.35);
+
+    // Twist deformation
+    float twist = sin(t * 0.8) * 1.35 + morph * 1.4;
+    vec3 qt = q;
+    qt.xz *= rot(qt.y * twist);
+
+    float torus1 = sdTorus(qt, vec2(1.05 + 0.08 * pulse, 0.28 + 0.03 * pulse));
+    vec3 qt2 = q.yzx;
+    qt2.xz *= rot(-qt2.y * twist * 0.7);
+    float torus2 = sdTorus(qt2, vec2(0.85, 0.19));
+
+    // Orbiting liquid chrome metaballs
+    float d = smin(torus1, torus2, 0.38);
+    for (int i = 0; i < 4; i++) {
+      float fi = float(i);
+      float ang = t * (1.1 + fi * 0.22) + fi * 1.5708;
+      vec3 orbPos = vec3(
+        cos(ang) * (1.28 + 0.25 * sin(t + fi)),
+        sin(ang * 1.3 + fi) * 0.72,
+        sin(ang) * (1.28 + 0.25 * cos(t * 0.9 + fi))
+      );
+      float sph = length(p - orbPos) - (0.24 + 0.05 * pulse);
+      d = smin(d, sph, 0.45);
+    }
+
+    // Morph core into faceted crystal after 7.5s
+    if (morph > 0.01) {
+      vec3 qc = q;
+      qc.xy *= rot(t * 1.2);
+      float oct = sdOctahedron(qc, 1.35 + 0.18 * pulse);
+      float gyroid = abs(dot(sin(qc * 3.8), cos(qc.yzx * 3.8))) / 3.8 - 0.05;
+      float crystal = max(oct, -gyroid * 0.7);
+      d = mix(d, crystal, smoothstep(0.0, 1.0, morph));
+    }
+    return d;
+  }
+
+  vec3 calcNormal(vec3 p, float t, float morph, float pulse) {
+    vec2 e = vec2(0.0025, 0.0);
+    return normalize(vec3(
+      mapAct2(p + e.xyy, t, morph, pulse) - mapAct2(p - e.xyy, t, morph, pulse),
+      mapAct2(p + e.yxy, t, morph, pulse) - mapAct2(p - e.yxy, t, morph, pulse),
+      mapAct2(p + e.yyx, t, morph, pulse) - mapAct2(p - e.yyx, t, morph, pulse)
+    ));
+  }
+
+  vec3 renderAct2(vec2 uv) {
+    float t = uTime - 3.75;
+    float morph = smoothstep(3.55, 4.15, t);
+    float zoom = mix(3.75, 2.55, smoothstep(3.4, 4.3, t)) - uBeat * 0.12;
+
+    vec3 ro = vec3(0.0, 0.25 * sin(t * 0.5), zoom);
+    vec3 rd = normalize(vec3(uv, -1.55));
+
+    // Subtle camera tilt
+    rd.yz *= rot(0.06 * sin(t * 0.7));
+
+    // Background radial glow + perspective grid floor
+    vec3 bg = vec3(0.025, 0.030, 0.052);
+    bg += vec3(0.10, 0.22, 0.75) * exp(-length(uv) * 1.7) * (0.45 + 0.25 * uBeat);
+    bg += vec3(0.65, 0.12, 0.45) * exp(-length(uv - vec2(0.45, -0.25)) * 2.3) * 0.25;
+
+    // Analytical perspective grid plane at y = -1.65
+    if (rd.y < -0.02) {
+      float tp = (-1.65 - ro.y) / rd.y;
+      if (tp > 0.0 && tp < 32.0) {
+        vec3 hp = ro + rd * tp;
+        vec2 g = abs(fract(hp.xz * 0.75 - 0.5) - 0.5) / fwidth(hp.xz * 0.75);
+        float line = 1.0 - min(min(g.x, g.y), 1.0);
+        float fade = exp(-tp * 0.11);
+        vec3 gridCol = mix(vec3(0.18, 0.36, 1.0), vec3(0.80, 1.0, 0.15), morph);
+        bg += gridCol * line * fade * (0.35 + 0.25 * uBeat);
+      }
+    }
+
+    // Raymarch SDF sculpture
+    float td = 0.0;
+    bool hit = false;
+    float minD = 99.0;
+    for (int i = 0; i < 68; i++) {
+      vec3 p = ro + rd * td;
+      float d = mapAct2(p, t, morph, uBeat);
+      minD = min(minD, d);
+      if (d < 0.0022) { hit = true; break; }
+      if (td > 9.0) break;
+      td += d * 0.85;
+    }
+
+    vec3 col = bg;
+    // Soft volumetric halo around geometry
+    col += vec3(0.20, 0.45, 1.0) * exp(-minD * 5.5) * (0.28 + 0.2 * uBeat);
+
+    if (hit) {
+      vec3 p = ro + rd * td;
+      vec3 n = calcNormal(p, t, morph, uBeat);
+      vec3 v = -rd;
+      float ndv = max(dot(n, v), 0.0);
+
+      // Three-point studio lighting
+      vec3 l1 = normalize(vec3(1.6, 2.2, 1.8));
+      vec3 l2 = normalize(vec3(-2.0, -0.8, 1.2));
+      vec3 l3 = normalize(vec3(0.0, 1.5, -2.0));
+
+      float diff1 = max(dot(n, l1), 0.0);
+      float diff2 = max(dot(n, l2), 0.0);
+      vec3 h1 = normalize(l1 + v);
+      vec3 h2 = normalize(l2 + v);
+      float spec1 = pow(max(dot(n, h1), 0.0), 48.0);
+      float spec2 = pow(max(dot(n, h2), 0.0), 32.0);
+      float fres = pow(1.0 - ndv, 3.0);
+
+      // Reflected studio softbox bands
+      vec3 refl = reflect(rd, n);
+      float studioBand = smoothstep(0.35, 0.85, sin(refl.y * 5.0 + refl.x * 3.0 + t) * 0.5 + 0.5);
+
+      vec3 irid = iridescence(ndv, t * 0.14 + length(p) * 0.2);
+      vec3 baseChrome = mix(vec3(0.08, 0.10, 0.16), irid, 0.72);
+      col = baseChrome * (0.25 + 0.75 * diff1)
+          + vec3(0.18, 0.40, 1.0) * diff2 * 0.55
+          + vec3(1.0, 0.95, 0.92) * spec1 * 1.4
+          + vec3(0.80, 1.0, 0.20) * spec2 * 0.65
+          + irid * studioBand * 0.45
+          + mix(vec3(0.25, 0.55, 1.0), vec3(0.95, 0.30, 0.65), fres) * fres * (1.25 + 0.4 * uBeat);
+
+      // Rim backlight
+      float rim = pow(max(dot(n, l3), 0.0), 2.0) * fres;
+      col += vec3(0.8, 0.95, 1.0) * rim * 1.1;
+    }
+    return col;
+  }
+
+  // Act V: High-Energy Vortex Tunnel + Audio-Reactive Rings
+  vec3 renderAct5(vec2 uv) {
+    float t = uTime - 20.625;
+    float r = length(uv);
+    float a = atan(uv.y, uv.x);
+
+    // Twist tunnel coordinates
+    float z = 1.0 / (r + 0.08) + t * 2.8;
+    float swirl = a + z * 0.45 + sin(t * 2.0) * 0.4;
+
+    float rings = sin(z * 3.5 - t * 8.0);
+    float spokes = cos(swirl * 6.0);
+    float plasma = smoothstep(0.15, 0.95, rings * spokes * 0.5 + 0.5);
+
+    vec3 c1 = vec3(0.03, 0.04, 0.09);
+    vec3 c2 = vec3(0.18, 0.36, 1.0);   // Electric Cobalt
+    vec3 c3 = vec3(0.80, 1.00, 0.05);  // Acid Lime
+    vec3 col = mix(c1, c2, plasma * 0.85);
+    col += c3 * pow(plasma, 4.0) * (0.7 + 0.9 * uBeat);
+
+    // Beat shockwave rings
+    float wave = exp(-abs(r - fract(t * 2.1333) * 1.35) * 28.0);
+    col += mix(c2, c3, 0.5) * wave * (0.8 + uBeat);
+
+    // Core singularity
+    col += vec3(0.7, 0.85, 1.0) * exp(-r * 5.2) * (0.65 + uBeat * 0.8);
+    return col;
+  }
+
+  // Act 0 / IV / VI Atmospheric Silk Gradient + Subtle Aurora Mesh
+  vec3 renderAmbient(vec2 uv, float mode) {
+    float t = uTime;
+    vec3 bg = vec3(0.027, 0.031, 0.047); // #07080C
+    float n1 = sin(uv.x * 2.3 + t * 0.7) * cos(uv.y * 2.1 - t * 0.5);
+    float n2 = cos(uv.x * 3.5 - t * 0.9 + uv.y * 2.8);
+
+    if (mode < 0.5) {
+      // Cold open spotlight
+      float spot = exp(-length(uv) * 2.2) * (0.32 + 0.12 * sin(t * 3.0));
+      return bg + vec3(0.14, 0.28, 0.85) * spot;
+    } else if (mode < 2.5) {
+      // Act IV Spatial UI dark glass backdrop
+      float g1 = exp(-length(uv - vec2(-0.55, 0.25) + 0.12 * vec2(n1, n2)) * 1.55);
+      float g2 = exp(-length(uv - vec2(0.58, -0.22) - 0.12 * vec2(n2, n1)) * 1.75);
+      return bg + vec3(0.13, 0.28, 0.92) * g1 * 0.42 + vec3(0.10, 0.65, 0.62) * g2 * 0.26;
+    } else {
+      // Act VI Warm Cobalt-Gold Aurora Resolve
+      float g1 = exp(-length(uv - vec2(0.0, 0.05) + 0.08 * vec2(n1, n2)) * 1.45);
+      float g2 = exp(-length(uv - vec2(0.45 * sin(t * 0.4), -0.2)) * 1.9);
+      return bg + vec3(0.18, 0.36, 1.0) * g1 * 0.36 + vec3(0.85, 0.95, 0.35) * g2 * 0.14;
+    }
+  }
+
+  void main() {
+    vec2 uv = (vUv - 0.5) * vec2(uRes.x / uRes.y, 1.0) * 2.0;
+    vec3 col;
+    if (uMode > 0.5 && uMode < 1.5) {
+      col = renderAct2(uv);
+    } else if (uMode > 2.5 && uMode < 3.5) {
+      col = renderAct5(uv);
+    } else {
+      col = renderAmbient(uv, uMode);
+    }
+    fragColor = vec4(col, 1.0);
+  }`;
+
+  // Post-Processing Shader: Composites WebGL Scene + 2D Vector/Typography Canvas
+  // Applies velocity chromatic aberration, anamorphic bloom, optical lens breath, vignette, 35mm grain
+  const POST_FS = `#version 300 es
+  precision highp float;
+  in vec2 vUv;
+  out vec4 fragColor;
+
+  uniform sampler2D uSceneTex;
+  uniform sampler2D uUiTex;
+  uniform float uTime;
+  uniform float uChroma;
+  uniform float uFlash;
+  uniform float uShake;
+  uniform float uFade;
+
+  float hash(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+  }
+
+  vec4 sampleComposite(vec2 uv) {
+    vec4 bg = texture(uSceneTex, clamp(uv, 0.0, 1.0));
+    vec4 ui = texture(uUiTex, clamp(uv, 0.0, 1.0));
+    // Canvas2D uploads premultiplied RGB; use exact Porter-Duff source-over
+    vec3 rgb = bg.rgb * (1.0 - ui.a) + ui.rgb;
+    return vec4(rgb, 1.0);
+  }
+
+  void main() {
+    // Micro camera shake & breathing
+    vec2 shakeOff = vec2(
+      sin(uTime * 73.0) * 0.0045,
+      cos(uTime * 91.0) * 0.0045
+    ) * uShake;
+
+    vec2 uv = vUv + shakeOff;
+    vec2 dir = uv - 0.5;
+    float dist = length(dir);
+
+    // Chromatic aberration on transitions / impacts
+    float ca = uChroma * (0.3 + dist * 1.4);
+    vec2 caVec = (dist > 0.0001 ? dir / dist : vec2(0.0)) * ca;
+
+    float r = sampleComposite(uv + caVec).r;
+    float g = sampleComposite(uv).g;
+    float b = sampleComposite(uv - caVec).b;
+    vec3 col = vec3(r, g, b);
+
+    // Subtle anamorphic horizontal bloom on bright highlights
+    vec3 bloom = vec3(0.0);
+    float wSum = 0.0;
+    for (int i = -4; i <= 4; i++) {
+      float fi = float(i);
+      float w = exp(-abs(fi) * 0.45);
+      vec3 s = sampleComposite(uv + vec2(fi * 0.0032, 0.0)).rgb;
+      float lum = dot(s, vec3(0.2126, 0.7152, 0.0722));
+      bloom += max(s - 0.72, 0.0) * smoothstep(0.68, 1.0, lum) * w;
+      wSum += w;
+    }
+    col += (bloom / wSum) * 0.55;
+
+    // Impact flash
+    col += vec3(uFlash);
+
+    // Subtle optical vignette
+    float vig = 1.0 - smoothstep(0.45, 1.15, dist) * 0.24;
+    col *= vig;
+
+    // Fine 35mm film grain (prevents dark banding, adds tactile cinema feel)
+    float grain = (hash(vUv * vec2(1920.0, 1080.0) + fract(uTime * 60.0) * 137.0) - 0.5) * 0.022;
+    col += grain;
+
+    // Master fade in/out
+    col *= uFade;
+    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+  }`;
+
+  // Setup WebGL Scene Program
+  const sceneProg = makeProgram(gl, QUAD_VS, SCENE_FS);
+  const sBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, sBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+  const sLoc = gl.getAttribLocation(sceneProg, "aPos");
+  gl.enableVertexAttribArray(sLoc);
+  gl.vertexAttribPointer(sLoc, 2, gl.FLOAT, false, 0, 0);
+
+  // Setup WebGL Post-FX Program
+  const postProg = makeProgram(glP, QUAD_VS, POST_FS);
+  const pBuf = glP.createBuffer();
+  glP.bindBuffer(glP.ARRAY_BUFFER, pBuf);
+  glP.bufferData(glP.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), glP.STATIC_DRAW);
+  const pLoc = glP.getAttribLocation(postProg, "aPos");
+  glP.enableVertexAttribArray(pLoc);
+  glP.vertexAttribPointer(pLoc, 2, glP.FLOAT, false, 0, 0);
+
+  function createTex(g) {
+    const tex = g.createTexture();
+    g.bindTexture(g.TEXTURE_2D, tex);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.LINEAR);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.LINEAR);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
+    return tex;
+  }
+  const texScene = createTex(glP);
+  const texUi = createTex(glP);
+
+  // =========================================================================
+  // 3. CANVAS2D VECTOR, TYPOGRAPHY & CHOREOGRAPHY HELPERS
+  // =========================================================================
+  const PAL = {
+    obsidian: "#07080C",
+    alabaster: "#F5F2EB",
+    cobalt: "#2D5BFF",
+    lime: "#CCFF00",
+    coral: "#FF3B1D",
+    cyan: "#00E5FF",
+    ink: "#0B0D14",
+    mutedLight: "rgba(245, 242, 235, 0.58)",
+    mutedDark: "rgba(11, 13, 20, 0.55)",
+    hairLight: "rgba(245, 242, 235, 0.16)",
+    hairDark: "rgba(11, 13, 20, 0.16)",
+  };
+
+  const FONT_DISPLAY = `'Avenir Next', 'Helvetica Neue', system-ui, sans-serif`;
+  const FONT_SERIF = `'New York', 'Georgia', serif`;
+  const FONT_MONO = `'Menlo', 'Monaco', monospace`;
+
+  function roundRectPath(c, x, y, w, h, r) {
+    const rr = Math.min(r, w * 0.5, h * 0.5);
+    c.beginPath();
+    c.moveTo(x + rr, y);
+    c.arcTo(x + w, y, x + w, y + h, rr);
+    c.arcTo(x + w, y + h, x, y + h, rr);
+    c.arcTo(x, y + h, x, y, rr);
+    c.arcTo(x, y, x + w, y, rr);
+    c.closePath();
+  }
+
+  function drawTrackedText(c, str, x, y, tracking = 0, align = "center") {
+    const chars = [...str];
+    const widths = chars.map(ch => c.measureText(ch).width);
+    const totalW = widths.reduce((a, b) => a + b, 0) + Math.max(0, chars.length - 1) * tracking;
+    let cx = align === "center" ? x - totalW * 0.5 : (align === "right" ? x - totalW : x);
+    const prevAlign = c.textAlign;
+    c.textAlign = "left";
+    for (let i = 0; i < chars.length; i++) {
+      c.fillText(chars[i], cx, y);
+      cx += widths[i] + tracking;
+    }
+    c.textAlign = prevAlign;
+  }
+
+  // Masked vertical slide-up typography reveal
+  function drawClippedHeadline(c, text, x, y, boxH, progress, font, color, tracking = -2, align = "center") {
+    c.save();
+    c.font = font;
+    c.textBaseline = "middle";
+    c.fillStyle = color;
+    c.beginPath();
+    c.rect(-W, y - boxH * 0.55, W * 2, boxH * 1.1);
+    c.clip();
+    const p = easeOutExpo(progress);
+    const dy = (1 - p) * (boxH * 0.95);
+    c.globalAlpha *= clamp(progress * 3.0);
+    drawTrackedText(c, text, x, y + dy, tracking, align);
+    c.restore();
+  }
+
+  // Draw the custom Antigravity Geometric Prism-A Emblem
+  function drawEmblem(c, cx, cy, size, drawProg = 1, rotAngle = 0, color = "#F5F2EB", accent = "#2D5BFF") {
+    c.save();
+    c.translate(cx, cy);
+    c.rotate(rotAngle);
+    const s = size;
+
+    // Outer orbital ring
+    c.strokeStyle = accent;
+    c.lineWidth = Math.max(2, s * 0.045);
+    c.beginPath();
+    c.arc(0, 0, s * 0.52, -Math.PI * 0.5, -Math.PI * 0.5 + Math.PI * 2 * clamp(drawProg));
+    c.stroke();
+
+    // Inner precision delta / A-prism
+    if (drawProg > 0.15) {
+      const p = easeOutExpo((drawProg - 0.15) / 0.85);
+      c.scale(p, p);
+      c.strokeStyle = color;
+      c.lineWidth = Math.max(2.5, s * 0.065);
+      c.lineJoin = "round";
+      c.beginPath();
+      c.moveTo(0, -s * 0.34);
+      c.lineTo(s * 0.29, s * 0.26);
+      c.lineTo(0, s * 0.10);
+      c.lineTo(-s * 0.29, s * 0.26);
+      c.closePath();
+      c.stroke();
+
+      // Glowing core dot
+      c.fillStyle = PAL.lime;
+      c.beginPath();
+      c.arc(0, -s * 0.04, s * 0.055, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.restore();
+  }
+
+  // Subtle corner technical HUD (visible during chapters, hidden on pure title cards)
+  function drawCornerHUD(t, frame, chapterLabel, isLight = false, alpha = 1) {
+    if (alpha <= 0.01) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const fg = isLight ? "rgba(11,13,20,0.68)" : "rgba(245,242,235,0.65)";
+    const acc = isLight ? PAL.cobalt : PAL.lime;
+    ctx.font = `600 13px ${FONT_MONO}`;
+    ctx.textBaseline = "middle";
+
+    // Top-left chapter badge
+    ctx.fillStyle = acc;
+    ctx.beginPath();
+    ctx.arc(72, 54, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = fg;
+    ctx.textAlign = "left";
+    ctx.fillText(chapterLabel, 88, 54);
+
+    // Top-right SMPTE timecode
+    const sec = Math.floor(t);
+    const ff = frame % FPS;
+    const tc = `00:00:${String(sec).padStart(2, "0")}:${String(ff).padStart(2, "0")} // 60FPS`;
+    ctx.textAlign = "right";
+    ctx.fillText(tc, W - 72, 54);
+
+    // Bottom progress hairline
+    const barW = W - 144;
+    ctx.fillStyle = isLight ? "rgba(11,13,20,0.10)" : "rgba(245,242,235,0.10)";
+    ctx.fillRect(72, H - 46, barW, 2);
+    ctx.fillStyle = acc;
+    ctx.fillRect(72, H - 46, barW * (t / 30.0), 2);
+    ctx.restore();
+  }
+
+  // =========================================================================
+  // 4. PRECOMPUTED CURL PARTICLES FOR ACT V (DETERMINISTIC)
+  // =========================================================================
+  const NUM_PARTS = 220;
+  const particles = Array.from({ length: NUM_PARTS }, (_, i) => {
+    const angle = (i / NUM_PARTS) * Math.PI * 2 * 3.0;
+    const radius = 120 + ((i * 73) % 760);
+    const speed = 0.6 + ((i * 37) % 100) / 80;
+    const size = 2.0 + ((i * 19) % 5);
+    const col = i % 5 === 0 ? PAL.lime : (i % 3 === 0 ? PAL.cyan : (i % 2 === 0 ? "#FFFFFF" : PAL.cobalt));
+    return { angle, radius, speed, size, col, phase: i * 0.41 };
+  });
+
+  // =========================================================================
+  // 5. ACT CHOREOGRAPHERS
+  // =========================================================================
+
+  // --- ACT I: COLD OPEN & KINETIC TITLE SLAM (0.000s - 3.750s) ---
+  function renderAct1(t, frame) {
+    // 0.000 - 1.875s: Tactile Calibration & Bezier Speed-Graph Anticipation
+    if (t < 1.875) {
+      const p = t / 1.875;
+      // Subtle grid lines fading in
+      ctx.save();
+      ctx.strokeStyle = "rgba(245,242,235,0.06)";
+      ctx.lineWidth = 1;
+      const gridAlpha = smoothstep(0.0, 0.35, p);
+      ctx.globalAlpha = gridAlpha;
+      for (let x = 240; x < W; x += 240) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+      for (let y = 180; y < H; y += 180) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+      ctx.restore();
+
+      // Crosshair reticule snap
+      const retScale = springOut(p * 3.2, 16, 7);
+      const collapse = smoothstep(0.65, 1.0, p); // anticipates inward before slam
+      const rSize = lerp(190, 26, collapse) * retScale;
+      ctx.save();
+      ctx.translate(W * 0.5, H * 0.5);
+      ctx.strokeStyle = PAL.alabaster;
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.85;
+      // 4 precision corner brackets
+      const br = 24;
+      [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sx, sy]) => {
+        ctx.beginPath();
+        ctx.moveTo(sx * rSize, sy * (rSize - br));
+        ctx.lineTo(sx * rSize, sy * rSize);
+        ctx.lineTo(sx * (rSize - br), sy * rSize);
+        ctx.stroke();
+      });
+
+      // Animated Cubic-Bezier Speed Curve drawing across center
+      const curveProg = easeOutExpo(invLerp(0.10, 0.72, p));
+      const bw = lerp(520, 40, collapse);
+      const bh = lerp(210, 0, collapse);
+      ctx.strokeStyle = PAL.lime;
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      const steps = 60;
+      for (let i = 0; i <= steps * curveProg; i++) {
+        const u = i / steps;
+        const bx = lerp(-bw * 0.5, bw * 0.5, u);
+        // S-curve ease visualization
+        const by = lerp(bh * 0.5, -bh * 0.5, easeInOutQuart(u));
+        if (i === 0) ctx.moveTo(bx, by); else ctx.lineTo(bx, by);
+      }
+      ctx.stroke();
+
+      // Bezier handles
+      if (collapse < 0.9) {
+        ctx.globalAlpha = (1 - collapse) * 0.8;
+        ctx.strokeStyle = PAL.cobalt;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-bw * 0.5, bh * 0.5); ctx.lineTo(-bw * 0.1, bh * 0.5);
+        ctx.moveTo(bw * 0.5, -bh * 0.5); ctx.lineTo(bw * 0.1, -bh * 0.5);
+        ctx.stroke();
+        ctx.fillStyle = PAL.cyan;
+        ctx.beginPath(); ctx.arc(-bw * 0.1, bh * 0.5, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(bw * 0.1, -bh * 0.5, 5, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Micro calibration label
+      ctx.globalAlpha = smoothstep(0.15, 0.4, p) * (1 - collapse);
+      ctx.fillStyle = PAL.mutedLight;
+      ctx.font = `500 15px ${FONT_MONO}`;
+      ctx.textAlign = "center";
+      drawTrackedText(ctx, "INIT // TIMING_CURVE(0.16, 1.00, 0.30, 1.00)", 0, rSize + 48, 2, "center");
+      ctx.restore();
+      drawCornerHUD(t, frame, "00 // CALIBRATION", false, 0.7);
+      return;
+    }
+
+    // 1.875 - 3.750s: POLARITY FLIP TO ALABASTER + MASSIVE KINETIC TITLE SLAM!
+    const p = (t - 1.875) / 1.875;
+    ctx.save();
+    // Crisp Alabaster background
+    ctx.fillStyle = PAL.alabaster;
+    ctx.fillRect(0, 0, W, H);
+
+    // Subtle geometric architectural grid on light
+    ctx.strokeStyle = PAL.hairDark;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(110, 0); ctx.lineTo(110, H);
+    ctx.moveTo(W - 110, 0); ctx.lineTo(W - 110, H);
+    ctx.moveTo(0, 120); ctx.lineTo(W, 120);
+    ctx.moveTo(0, H - 120); ctx.lineTo(W, H - 120);
+    ctx.stroke();
+
+    // Top-left & bottom-right editorial tags
+    ctx.fillStyle = PAL.ink;
+    ctx.font = `700 16px ${FONT_MONO}`;
+    ctx.textAlign = "left";
+    ctx.fillText("ANTIGRAVITY // PORTFOLIO REEL", 110, 82);
+    ctx.textAlign = "right";
+    ctx.fillText("2026 EDITION — VOL. 01", W - 110, 82);
+
+    // Phase A (1.875 - 2.8125): Stacked "MOTION / IS / PHYSICS" with squash & stretch
+    if (p < 0.52) {
+      const sub = p / 0.52;
+      const slamScaleY = 1.0 + Math.exp(-sub * 10.0) * 0.45 * Math.cos(sub * 22.0);
+      const slamScaleX = 1.0 / Math.sqrt(slamScaleY);
+      ctx.save();
+      ctx.translate(W * 0.5, H * 0.5);
+      ctx.scale(slamScaleX, slamScaleY);
+
+      // Word 1: MOTION
+      drawClippedHeadline(ctx, "MOTION", 0, -165, 190, invLerp(0.0, 0.35, sub), `900 176px ${FONT_DISPLAY}`, PAL.ink, -4);
+      // Word 2: IS (accent cobalt pill + italic serif!)
+      const pillW = 240 * easeOutExpo(invLerp(0.08, 0.45, sub));
+      ctx.fillStyle = PAL.cobalt;
+      roundRectPath(ctx, -pillW * 0.5, -52, pillW, 104, 52);
+      ctx.fill();
+      if (sub > 0.12) {
+        ctx.fillStyle = PAL.alabaster;
+        ctx.font = `italic 700 68px ${FONT_SERIF}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("is", 0, 2);
+      }
+      // Word 3: PHYSICS
+      drawClippedHeadline(ctx, "PHYSICS", 0, 165, 190, invLerp(0.14, 0.52, sub), `900 176px ${FONT_DISPLAY}`, PAL.ink, -4);
+      ctx.restore();
+    } else {
+      // Phase B (2.8125 - 3.750): Split reveal to ANTIGRAVITY SHOWREEL + Circular Portal Iris opening!
+      const sub = (p - 0.52) / 0.48;
+      const enter = easeOutExpo(invLerp(0.0, 0.55, sub));
+      ctx.save();
+      ctx.translate(W * 0.5, H * 0.5);
+      ctx.fillStyle = PAL.ink;
+      ctx.font = `900 132px ${FONT_DISPLAY}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const track = lerp(42, 6, enter);
+      ctx.globalAlpha = clamp(sub * 4);
+      drawTrackedText(ctx, "ANTIGRAVITY", 0, -34, track, "center");
+
+      ctx.fillStyle = PAL.cobalt;
+      ctx.font = `600 22px ${FONT_MONO}`;
+      drawTrackedText(ctx, "SENIOR MOTION DESIGNER  •  CREATIVE TECHNOLOGIST", 0, 62, lerp(14, 4, enter), "center");
+      ctx.restore();
+
+      // Match-cut circular dark portal expanding from center at end of Act I
+      if (sub > 0.58) {
+        const iris = easeInOutQuart((sub - 0.58) / 0.42);
+        const rad = iris * 1250;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(W * 0.5, H * 0.5, rad, 0, Math.PI * 2);
+        ctx.fillStyle = PAL.obsidian;
+        ctx.fill();
+        ctx.strokeStyle = PAL.cobalt;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+  }
+
+  // --- ACT II: RAYMARCHED 3D SCULPTURE HUD OVERLAY (3.750s - 9.375s) ---
+  function renderAct2HUD(t, frame) {
+    const localT = t - 3.750;
+    const p = localT / 5.625;
+    const enter = easeOutExpo(invLerp(0.0, 0.16, p));
+    const exit = 1.0 - smoothstep(0.92, 1.0, p);
+
+    ctx.save();
+    ctx.globalAlpha = enter * exit;
+
+    // Left editorial lockup (stays clean in left column, never blocks 3D centerpiece)
+    const xL = lerp(-90, 110, enter);
+    ctx.fillStyle = PAL.lime;
+    ctx.font = `700 14px ${FONT_MONO}`;
+    ctx.textAlign = "left";
+    ctx.fillText("01 / PROCEDURAL 3D & SHADERS", xL, 195);
+
+    drawClippedHeadline(ctx, "SCULPTING", xL, 260, 86, invLerp(0.03, 0.22, p), `800 68px ${FONT_DISPLAY}`, PAL.alabaster, -1, "left");
+    drawClippedHeadline(ctx, "LIGHT & FORM", xL, 336, 86, invLerp(0.08, 0.28, p), `800 68px ${FONT_DISPLAY}`, PAL.alabaster, -1, "left");
+
+    ctx.fillStyle = PAL.mutedLight;
+    ctx.font = `400 20px ${FONT_DISPLAY}`;
+    ctx.fillText("GLSL Signed-Distance Raymarching", xL, 412);
+    ctx.fillText("Thin-Film Iridescent Fresnel Dispersion", xL, 444);
+
+    // Floating technical callout tracking around 3D sculpture
+    const callX = W * 0.5 + 315 + Math.cos(t * 0.9) * 16;
+    const callY = H * 0.5 - 205 + Math.sin(t * 1.1) * 12;
+    ctx.strokeStyle = "rgba(245,242,235,0.55)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.5 + 140, H * 0.5 - 70);
+    ctx.lineTo(callX, callY);
+    ctx.lineTo(callX + 24, callY);
+    ctx.stroke();
+
+    ctx.fillStyle = PAL.lime;
+    ctx.beginPath();
+    ctx.arc(W * 0.5 + 140, H * 0.5 - 70, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    const morphPhase = localT > 3.75;
+    roundRectPath(ctx, callX + 24, callY - 34, 305, 68, 12);
+    ctx.fillStyle = "rgba(7, 8, 12, 0.78)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(245, 242, 235, 0.22)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = PAL.alabaster;
+    ctx.font = `600 14px ${FONT_MONO}`;
+    ctx.fillText(morphPhase ? "GYROID LATTICE // MORPH" : "LIQUID CHROME // SMIN SDF", callX + 40, callY - 11);
+    ctx.fillStyle = PAL.mutedLight;
+    ctx.font = `500 12px ${FONT_MONO}`;
+    ctx.fillText(`IOR: 1.48  •  BOUNCE: 3X  •  60.0 FPS`, callX + 40, callY + 15);
+
+    // Bottom-right spec pill
+    const pillX = W - 400, pillY = H - 155;
+    roundRectPath(ctx, pillX, pillY, 290, 56, 28);
+    ctx.fillStyle = "rgba(15, 18, 28, 0.72)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(245,242,235,0.2)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = PAL.cyan;
+    ctx.beginPath(); ctx.arc(pillX + 28, pillY + 28, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PAL.alabaster;
+    ctx.font = `600 14px ${FONT_MONO}`;
+    ctx.fillText("METAL WEBGL2 // REALTIME", pillX + 48, pillY + 33);
+
+    ctx.restore();
+    drawCornerHUD(t, frame, "01 // 3D RAYMARCHING", false, enter * exit);
+
+    // Whip-wipe curtain transitioning into Act III
+    if (localT > 5.38) {
+      const wProg = easeInOutQuart((localT - 5.38) / 0.245);
+      ctx.fillStyle = PAL.alabaster;
+      ctx.fillRect(0, 0, W * wProg, H);
+    }
+  }
+
+  // --- ACT III: SWISS EDITORIAL & KINETIC TYPOGRAPHY (9.375s - 15.000s) ---
+  function renderAct3(t, frame) {
+    const localT = t - 9.375; // 0 .. 5.625s (3 bars)
+
+    // BAR 6 (9.375 - 11.250s): Modular Swiss Poster Grid + Brand Morph
+    if (localT < 1.875) {
+      const p = localT / 1.875;
+      ctx.fillStyle = PAL.alabaster;
+      ctx.fillRect(0, 0, W, H);
+
+      // 3x2 Modular Grid Lines snapping cleanly
+      const gEase = easeOutExpo(invLerp(0.0, 0.35, p));
+      ctx.save();
+      ctx.strokeStyle = PAL.ink;
+      ctx.lineWidth = 2;
+      const cols = [110, 700, 1280, W - 110];
+      const rows = [120, 540, H - 110];
+      cols.forEach(x => {
+        ctx.beginPath(); ctx.moveTo(x, 120); ctx.lineTo(x, lerp(120, H - 110, gEase)); ctx.stroke();
+      });
+      rows.forEach(y => {
+        ctx.beginPath(); ctx.moveTo(110, y); ctx.lineTo(lerp(110, W - 110, gEase), y); ctx.stroke();
+      });
+
+      // Cell (0,0): Giant cropped Swiss Numeral "02"
+      ctx.save();
+      ctx.beginPath(); ctx.rect(110, 120, 590, 420); ctx.clip();
+      ctx.fillStyle = PAL.ink;
+      ctx.font = `900 390px ${FONT_DISPLAY}`;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      const nSlide = easeOutExpo(invLerp(0.05, 0.45, p));
+      ctx.fillText("02", 125, lerp(620, 355, nSlide));
+      ctx.restore();
+
+      // Cell (1,0): Rotating Swiss Starburst + Brand Discipline
+      ctx.save();
+      ctx.beginPath(); ctx.rect(700, 120, 580, 420); ctx.clip();
+      const sScale = springOut(invLerp(0.12, 0.55, p), 14, 6);
+      ctx.translate(990, 310);
+      ctx.rotate(localT * 1.8);
+      ctx.scale(sScale, sScale);
+      ctx.strokeStyle = PAL.coral;
+      ctx.lineWidth = 10;
+      for (let i = 0; i < 8; i++) {
+        ctx.rotate(Math.PI / 8);
+        ctx.beginPath(); ctx.moveTo(-95, 0); ctx.lineTo(95, 0); ctx.stroke();
+      }
+      ctx.restore();
+      ctx.fillStyle = PAL.ink;
+      ctx.font = `700 18px ${FONT_MONO}`;
+      ctx.fillText("BRAND & KINETIC TYPE", 730, 505);
+
+      // Cell (2,0): Morphing Geometric Brand Mark (Circle -> Triangle -> Prism Diamond)
+      ctx.save();
+      ctx.fillStyle = PAL.cobalt;
+      const cellProg = easeOutExpo(invLerp(0.20, 0.50, p));
+      ctx.fillRect(1280, 120, (W - 110 - 1280) * cellProg, 420);
+      if (p > 0.25) {
+        const mT = (p - 0.25) / 0.75;
+        ctx.translate(1545, 330);
+        ctx.rotate(mT * Math.PI * 0.75);
+        const sides = Math.round(lerp(36, 4, smoothstep(0.1, 0.65, mT)));
+        const rad = 105 * springOut((p - 0.25) * 3, 12, 5);
+        ctx.strokeStyle = PAL.lime;
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        for (let i = 0; i <= sides; i++) {
+          const a = (i / sides) * Math.PI * 2;
+          const r = rad * (1 + 0.15 * Math.sin(a * 4 + mT * 6));
+          if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+          else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Bottom Full-Span Marquee Ticker
+      ctx.save();
+      ctx.beginPath(); ctx.rect(110, 540, W - 220, H - 650); ctx.clip();
+      ctx.fillStyle = PAL.ink;
+      ctx.font = `900 128px ${FONT_DISPLAY}`;
+      ctx.textBaseline = "middle";
+      const scrollX = 140 - localT * 380;
+      ctx.fillText("TIMING  •  WEIGHT  •  CONTRAST  •  RHYTHM  •", scrollX, 740);
+      ctx.fillStyle = PAL.cobalt;
+      ctx.font = `italic 600 40px ${FONT_SERIF}`;
+      ctx.fillText("Typography treated as choreography in physical space.", 145, 880);
+      ctx.restore();
+
+      ctx.restore();
+      drawCornerHUD(t, frame, "02 // SWISS EDITORIAL", true, 0.9);
+      return;
+    }
+
+    // BAR 7 (11.250 - 13.125s): FOUR-BEAT PHYSICAL WORD CHOREOGRAPHY: EASE / SNAP / FLOW / IMPACT
+    if (localT < 3.750) {
+      const bTime = localT - 1.875; // 0 .. 1.875s (4 beats of 0.46875s each)
+      const wordIdx = Math.min(3, Math.floor(bTime / BEAT));
+      const wP = (bTime - wordIdx * BEAT) / BEAT; // 0..1 within single beat
+
+      if (wordIdx === 0) {
+        // BEAT 1: "EASE" — Obsidian background, silky wide-to-tight letter tracking
+        ctx.fillStyle = PAL.obsidian;
+        ctx.fillRect(0, 0, W, H);
+        const e = easeOutExpo(wP);
+        ctx.save();
+        ctx.fillStyle = PAL.alabaster;
+        ctx.font = `300 220px ${FONT_DISPLAY}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        drawTrackedText(ctx, "EASE", W * 0.5, H * 0.5, lerp(160, 18, e), "center");
+        // Smooth silk guideline beneath
+        ctx.strokeStyle = PAL.cyan;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(W * 0.5 - 420 * e, H * 0.5 + 145);
+        ctx.lineTo(W * 0.5 + 420 * e, H * 0.5 + 145);
+        ctx.stroke();
+        ctx.restore();
+      } else if (wordIdx === 1) {
+        // BEAT 2: "SNAP" — Electric Cobalt, razor-sharp shear + corner bracket recoil!
+        ctx.fillStyle = PAL.cobalt;
+        ctx.fillRect(0, 0, W, H);
+        const s = springOut(wP * 1.4, 22, 8);
+        const shear = (1 - s) * -0.55;
+        ctx.save();
+        ctx.translate(W * 0.5, H * 0.5);
+        ctx.transform(1, 0, shear, 1, lerp(-320, 0, s), 0);
+        ctx.fillStyle = PAL.lime;
+        ctx.font = `900 250px ${FONT_DISPLAY}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("SNAP", 0, 0);
+        ctx.restore();
+
+        // Crisp snap brackets
+        const bw = lerp(520, 390, s);
+        ctx.strokeStyle = PAL.alabaster;
+        ctx.lineWidth = 6;
+        ctx.strokeRect(W * 0.5 - bw, H * 0.5 - 165, bw * 2, 330);
+      } else if (wordIdx === 2) {
+        // BEAT 3: "FLOW" — Warm Alabaster, undulating wave baseline + bezier ribbon!
+        ctx.fillStyle = PAL.alabaster;
+        ctx.fillRect(0, 0, W, H);
+        ctx.save();
+        // Flowing sine ribbon behind letters
+        ctx.strokeStyle = PAL.cobalt;
+        ctx.lineWidth = 18;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        for (let x = 220; x <= W - 220; x += 20) {
+          const u = (x - 220) / (W - 440);
+          const y = H * 0.5 + Math.sin(u * 9.0 - wP * 10.0) * 110 * Math.sin(u * Math.PI);
+          if (x === 220) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        const letters = ["F", "L", "O", "W"];
+        ctx.fillStyle = PAL.ink;
+        ctx.font = `italic 800 240px ${FONT_SERIF}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        letters.forEach((ch, idx) => {
+          const lx = W * 0.5 + (idx - 1.5) * 230;
+          const ly = H * 0.5 + Math.sin(wP * Math.PI * 2 + idx * 1.1) * 52;
+          ctx.fillText(ch, lx, ly);
+        });
+        ctx.restore();
+      } else {
+        // BEAT 4: "IMPACT" — Vermilion Coral + Acid Lime shockwave ring + heavy scale slam!
+        ctx.fillStyle = PAL.coral;
+        ctx.fillRect(0, 0, W, H);
+        const imp = springOut(wP * 1.6, 24, 9);
+        const sc = lerp(1.55, 1.0, imp);
+
+        // Expanding shockwave ring
+        ctx.save();
+        ctx.strokeStyle = PAL.lime;
+        ctx.lineWidth = lerp(22, 2, wP);
+        ctx.beginPath();
+        ctx.arc(W * 0.5, H * 0.5, wP * 980, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.translate(W * 0.5, H * 0.5);
+        ctx.scale(sc, sc);
+        ctx.fillStyle = PAL.obsidian;
+        ctx.font = `900 245px ${FONT_DISPLAY}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("IMPACT", 0, 0);
+        ctx.restore();
+      }
+      return;
+    }
+
+    // BAR 8 (13.125 - 15.000s): Concentric Kinetic Type Tunnel collapsing into Act IV
+    const p = (localT - 3.750) / 1.875;
+    ctx.fillStyle = PAL.obsidian;
+    ctx.fillRect(0, 0, W, H);
+    ctx.save();
+    ctx.translate(W * 0.5, H * 0.5);
+    const collapse = easeInExpo(invLerp(0.65, 1.0, p));
+    for (let ring = 0; ring < 4; ring++) {
+      const r = (180 + ring * 145) * (1 - collapse * 0.85);
+      const dir = ring % 2 === 0 ? 1 : -1;
+      const phrase = "DESIGNING TIME  •  SCULPTING LIGHT  •  ";
+      ctx.save();
+      ctx.rotate(p * dir * 2.2 + ring * 0.6);
+      ctx.fillStyle = ring === 1 ? PAL.lime : (ring === 2 ? PAL.cobalt : PAL.alabaster);
+      ctx.globalAlpha = (1 - ring * 0.16) * (1 - collapse);
+      ctx.font = `700 ${26 - ring * 2}px ${FONT_MONO}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const n = phrase.length;
+      for (let i = 0; i < n; i++) {
+        const ang = (i / n) * Math.PI * 2;
+        ctx.save();
+        ctx.rotate(ang);
+        ctx.translate(0, -r);
+        ctx.fillText(phrase[i], 0, 0);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+    // Center iris flash into Act IV
+    if (p > 0.7) {
+      const s = easeOutExpo((p - 0.7) / 0.3);
+      ctx.strokeStyle = PAL.cyan;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, lerp(40, 1200, s), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+    drawCornerHUD(t, frame, "02 // KINETIC SYSTEMS", false, 1 - collapse);
+  }
+
+  // --- ACT IV: SPATIAL PRODUCT UI/UX & DATA STORYTELLING (15.000s - 20.625s) ---
+  function renderAct4(t, frame) {
+    const localT = t - 15.000; // 0 .. 5.625s
+    const enter = easeOutExpo(invLerp(0.0, 0.65, localT));
+    const fanOut = easeInOutQuart(invLerp(3.75, 5.25, localT));
+
+    ctx.save();
+    // Section Header Top-Left
+    ctx.globalAlpha = enter * (1 - smoothstep(4.9, 5.6, localT));
+    ctx.fillStyle = PAL.cyan;
+    ctx.font = `700 14px ${FONT_MONO}`;
+    ctx.textAlign = "left";
+    ctx.fillText("03 / PRODUCT MOTION & DATA VIZ", 110, 130);
+    ctx.fillStyle = PAL.alabaster;
+    ctx.font = `800 44px ${FONT_DISPLAY}`;
+    ctx.fillText("INTERACTIVE SYSTEMS", 110, 180);
+
+    // Cursor Choreography Coordinates (natural Bezier waypoints matching exact UI controls)
+    // Click 1 at localT = 1.10s: toggle switch center (798, 288)
+    // Click 2 at localT = 2.20s: bezier handle cp2 (456, 385)
+    // Click 3 at localT = 3.10s: Render CTA button center (1465, 750)
+    let curX = 1450, curY = 860;
+    if (localT < 1.10) {
+      const u = easeInOutQuart(localT / 1.10);
+      curX = lerp(1550, 798, u);
+      curY = lerp(900, 288, u) - Math.sin(u * Math.PI) * 90;
+    } else if (localT < 2.20) {
+      const u = easeInOutQuart((localT - 1.10) / 1.10);
+      curX = lerp(798, 456, u);
+      curY = lerp(288, 385, u) + Math.sin(u * Math.PI) * 55;
+    } else if (localT < 3.10) {
+      const u = easeInOutQuart((localT - 2.20) / 0.90);
+      curX = lerp(456, 1465, u);
+      curY = lerp(385, 750, u) - Math.sin(u * Math.PI) * 80;
+    } else {
+      const u = easeOutExpo((localT - 3.10) / 0.8);
+      curX = lerp(1465, 1620, u);
+      curY = lerp(750, 880, u);
+    }
+
+    const themeActive = localT >= 1.10; // toggled by click 1!
+    const renderedActive = localT >= 3.10; // triggered by click 3!
+
+    // === CARD 1 (LEFT HERO): MOTION KEYFRAME & BEZIER ENGINE ===
+    ctx.save();
+    const c1x = 110 - fanOut * 140;
+    const c1y = lerp(340, 235, enter) - fanOut * 40;
+    const c1w = 880, c1h = 580;
+    ctx.translate(c1x + c1w * 0.5, c1y + c1h * 0.5);
+    ctx.scale(lerp(0.92, 1.0, enter) * (1 - fanOut * 0.12), lerp(0.92, 1.0, enter) * (1 - fanOut * 0.12));
+    ctx.rotate(-fanOut * 0.08);
+    ctx.translate(-c1w * 0.5, -c1h * 0.5);
+
+    // Glass card body
+    roundRectPath(ctx, 0, 0, c1w, c1h, 24);
+    ctx.fillStyle = themeActive ? "rgba(18, 28, 56, 0.82)" : "rgba(16, 19, 28, 0.84)";
+    ctx.fill();
+    ctx.strokeStyle = themeActive ? "rgba(0, 229, 255, 0.35)" : "rgba(245, 242, 235, 0.16)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Card top bar
+    ctx.fillStyle = PAL.alabaster;
+    ctx.font = `700 20px ${FONT_DISPLAY}`;
+    ctx.textAlign = "left";
+    ctx.fillText("TIMELINE // SPRING ENGINE", 36, 52);
+    ctx.fillStyle = PAL.mutedLight;
+    ctx.font = `500 13px ${FONT_MONO}`;
+    ctx.fillText("EASING: CUBIC_BEZIER(0.16, 1.0, 0.30, 1.0)", 36, 80);
+
+    // Spring Toggle Switch (flips smoothly at localT = 1.10s!)
+    const togP = springOut(invLerp(1.10, 1.48, localT), 18, 7);
+    const tx = 650, ty = 34;
+    roundRectPath(ctx, tx, ty, 76, 38, 19);
+    ctx.fillStyle = togP > 0.5 ? PAL.lime : "rgba(255,255,255,0.14)";
+    ctx.fill();
+    ctx.fillStyle = togP > 0.5 ? PAL.obsidian : PAL.alabaster;
+    ctx.beginPath();
+    ctx.arc(lerp(tx + 19, tx + 57, togP), ty + 19, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = PAL.mutedLight;
+    ctx.font = `600 12px ${FONT_MONO}`;
+    ctx.fillText("60FPS LOCK", tx + 92, ty + 24);
+
+    // Interactive Bezier Graph Area
+    const gx = 36, gy = 115, gw = c1w - 72, gh = 290;
+    roundRectPath(ctx, gx, gy, gw, gh, 16);
+    ctx.fillStyle = "rgba(7, 8, 12, 0.65)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.stroke();
+
+    // Graph Grid
+    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    for (let i = 1; i < 6; i++) {
+      const yy = gy + (gh / 6) * i;
+      ctx.beginPath(); ctx.moveTo(gx, yy); ctx.lineTo(gx + gw, yy); ctx.stroke();
+    }
+
+    // Animated Bezier Curve responding to scrub at 2.20s
+    const curveShift = Math.sin(clamp((localT - 2.20) * 2.5, 0, Math.PI)) * 55;
+    const cp1x = gx + 160 + curveShift, cp1y = gy + gh - 35;
+    const cp2x = gx + 310 - curveShift, cp2y = gy + 35;
+    ctx.strokeStyle = themeActive ? PAL.cyan : PAL.cobalt;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(gx + 40, gy + gh - 35);
+    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, gx + gw - 40, gy + 35);
+    ctx.stroke();
+
+    // Handle bars & nodes
+    ctx.strokeStyle = PAL.lime;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(gx + 40, gy + gh - 35); ctx.lineTo(cp1x, cp1y);
+    ctx.moveTo(gx + gw - 40, gy + 35); ctx.lineTo(cp2x, cp2y);
+    ctx.stroke();
+    ctx.fillStyle = PAL.lime;
+    ctx.beginPath(); ctx.arc(cp1x, cp1y, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cp2x, cp2y, 7, 0, Math.PI * 2); ctx.fill();
+
+    // Live scrubbing playhead across keyframe tracks below
+    const scrubU = (localT * 0.38) % 1.0;
+    const phX = gx + 20 + scrubU * (gw - 40);
+    ctx.strokeStyle = PAL.coral;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(phX, gy + 10); ctx.lineTo(phX, gy + gh + 125); ctx.stroke();
+
+    // Keyframe Tracks
+    ["POSITION_X", "SCALE_SPRING", "SHADER_GLOW"].forEach((lbl, rIdx) => {
+      const ry = gy + gh + 28 + rIdx * 38;
+      ctx.fillStyle = PAL.mutedLight;
+      ctx.font = `600 12px ${FONT_MONO}`;
+      ctx.fillText(lbl, gx + 10, ry + 5);
+      ctx.fillStyle = "rgba(255,255,255,0.08)";
+      roundRectPath(ctx, gx + 150, ry - 5, gw - 165, 10, 5);
+      ctx.fill();
+      ctx.fillStyle = rIdx === 0 ? PAL.cobalt : (rIdx === 1 ? PAL.lime : PAL.cyan);
+      const barStart = gx + 150 + rIdx * 80;
+      const barLen = 260 + Math.sin(localT * 2 + rIdx) * 40;
+      roundRectPath(ctx, barStart, ry - 5, barLen, 10, 5);
+      ctx.fill();
+    });
+    ctx.restore();
+
+    // === CARD 2 (RIGHT TOP): DATA VISUALIZATION & TELEMETRY ===
+    ctx.save();
+    const c2x = 1030 + fanOut * 140;
+    const c2y = lerp(310, 235, easeOutExpo(invLerp(0.08, 0.75, localT))) - fanOut * 30;
+    const c2w = 780, c2h = 330;
+    ctx.translate(c2x + c2w * 0.5, c2y + c2h * 0.5);
+    ctx.rotate(fanOut * 0.07);
+    ctx.translate(-c2w * 0.5, -c2h * 0.5);
+
+    roundRectPath(ctx, 0, 0, c2w, c2h, 24);
+    ctx.fillStyle = "rgba(16, 19, 28, 0.84)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(245, 242, 235, 0.16)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = PAL.mutedLight;
+    ctx.font = `600 13px ${FONT_MONO}`;
+    ctx.fillText("RETENTION TELEMETRY", 32, 42);
+    const pctVal = Math.round(lerp(0, 248, easeOutExpo(invLerp(0.2, 1.8, localT))));
+    ctx.fillStyle = PAL.lime;
+    ctx.font = `800 54px ${FONT_DISPLAY}`;
+    ctx.fillText(`+${pctVal}%`, 32, 102);
+
+    // Animated Spline Area Chart
+    const chartProg = easeOutExpo(invLerp(0.2, 1.8, localT));
+    const pts = [0.22, 0.34, 0.28, 0.52, 0.48, 0.76, 0.69, 0.92];
+    const chX = 32, chY = 135, chW = c2w - 64, chH = 160;
+    ctx.beginPath();
+    pts.forEach((v, i) => {
+      const px = chX + (i / (pts.length - 1)) * chW * chartProg;
+      const py = chY + chH - v * chH * (0.85 + 0.15 * Math.sin(localT * 2 + i));
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.strokeStyle = PAL.cyan;
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+    // Area fill under spline
+    ctx.lineTo(chX + chW * chartProg, chY + chH);
+    ctx.lineTo(chX, chY + chH);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, chY, 0, chY + chH);
+    grad.addColorStop(0, "rgba(0, 229, 255, 0.35)");
+    grad.addColorStop(1, "rgba(0, 229, 255, 0.0)");
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.restore();
+
+    // === CARD 3 (RIGHT BOTTOM): INTERACTIVE RENDER CTA ===
+    ctx.save();
+    const c3x = 1030 + fanOut * 180;
+    const c3y = lerp(670, 595, easeOutExpo(invLerp(0.14, 0.85, localT))) + fanOut * 55;
+    const c3w = 780, c3h = 220;
+    ctx.translate(c3x, c3y);
+
+    roundRectPath(ctx, 0, 0, c3w, c3h, 24);
+    ctx.fillStyle = renderedActive ? "rgba(45, 91, 255, 0.92)" : "rgba(16, 19, 28, 0.84)";
+    ctx.fill();
+    ctx.strokeStyle = renderedActive ? PAL.lime : "rgba(245, 242, 235, 0.16)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = PAL.alabaster;
+    ctx.font = `700 22px ${FONT_DISPLAY}`;
+    ctx.fillText(renderedActive ? "EXPORTING 60FPS PIPELINE..." : "REALTIME COMPOSITOR READY", 36, 56);
+    ctx.fillStyle = renderedActive ? "rgba(255,255,255,0.85)" : PAL.mutedLight;
+    ctx.font = `500 14px ${FONT_MONO}`;
+    ctx.fillText("FRAME BUDGET: 16.6ms  •  BITRATE: HIGH", 36, 92);
+
+    // Interactive Button
+    const btnScale = renderedActive ? springOut(invLerp(3.10, 3.35, localT), 20, 8) : 1;
+    ctx.save();
+    ctx.translate(435, 155);
+    ctx.scale(lerp(0.92, 1.0, btnScale), lerp(0.92, 1.0, btnScale));
+    roundRectPath(ctx, -155, -34, 310, 68, 34);
+    ctx.fillStyle = renderedActive ? PAL.lime : PAL.cobalt;
+    ctx.fill();
+    ctx.fillStyle = renderedActive ? PAL.obsidian : PAL.alabaster;
+    ctx.font = `800 18px ${FONT_DISPLAY}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(renderedActive ? "SEQUENCE LOCKED ✓" : "TRIGGER SEQUENCE →", 0, 1);
+    ctx.restore();
+    ctx.restore();
+
+    // Click Ripples
+    [1.10, 2.20, 3.10].forEach((tClick, idx) => {
+      if (localT >= tClick && localT < tClick + 0.55) {
+        const rp = (localT - tClick) / 0.55;
+        const rx = idx === 0 ? 798 : (idx === 1 ? 456 : 1465);
+        const ry = idx === 0 ? 288 : (idx === 1 ? 385 : 750);
+        ctx.save();
+        ctx.strokeStyle = PAL.lime;
+        ctx.lineWidth = 3 * (1 - rp);
+        ctx.globalAlpha = 1 - rp;
+        ctx.beginPath();
+        ctx.arc(rx, ry, rp * 85, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    });
+
+    // Crisp Vector Cursor
+    if (localT > 0.1 && localT < 4.5) {
+      ctx.save();
+      ctx.translate(curX, curY);
+      ctx.fillStyle = PAL.alabaster;
+      ctx.strokeStyle = PAL.obsidian;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, 32);
+      ctx.lineTo(9, 25);
+      ctx.lineTo(16, 38);
+      ctx.lineTo(22, 35);
+      ctx.lineTo(15, 22);
+      ctx.lineTo(25, 20);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.restore();
+    drawCornerHUD(t, frame, "03 // PRODUCT MOTION", false, enter * (1 - fanOut));
+
+    // Diagonal kinetic slice wipe into Act V
+    if (localT > 5.20) {
+      const wp = easeInExpo((localT - 5.20) / 0.425);
+      ctx.save();
+      ctx.fillStyle = PAL.cobalt;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(W * wp * 1.35, 0);
+      ctx.lineTo(W * wp * 1.35 - 380, H);
+      ctx.lineTo(0, H);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // --- ACT V: CLIMAX PARTICLE VORTEX & RAPID MONTAGE (20.625s - 26.250s) ---
+  function renderAct5Overlay(t, frame) {
+    const localT = t - 20.625; // 0 .. 5.625s
+    const beat = beatPulse(t, BEAT, 7.5);
+
+    // Velocity-stretched glowing particle swarm orbiting center
+    ctx.save();
+    ctx.translate(W * 0.5, H * 0.5);
+    particles.forEach(pt => {
+      const ang = pt.angle + localT * pt.speed * 1.35;
+      const r = pt.radius * (0.86 + 0.22 * beat + 0.12 * Math.sin(localT * 3 + pt.phase));
+      const x = Math.cos(ang) * r;
+      const y = Math.sin(ang) * r * 0.72;
+      const vx = -Math.sin(ang) * pt.speed * 26;
+      const vy = Math.cos(ang) * pt.speed * 19;
+
+      ctx.strokeStyle = pt.col;
+      ctx.lineWidth = pt.size;
+      ctx.lineCap = "round";
+      ctx.globalAlpha = 0.75;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - vx, y - vy);
+      ctx.stroke();
+    });
+    ctx.restore();
+
+    // Rapid-cut Discipline Badges
+    if (localT < 3.750) {
+      // Bars 12-13: Bold kinetic centerpiece titles changing every 2 beats
+      const slot = Math.floor(localT / (BEAT * 2)); // 0, 1, 2, 3
+      const titles = ["VFX & PARTICLES", "GPU SHADERS", "MOTION SYSTEMS", "AUDIO SYNC"];
+      const sP = (localT % (BEAT * 2)) / (BEAT * 2);
+      const sc = lerp(1.18, 1.0, easeOutExpo(sP * 2.2));
+      ctx.save();
+      ctx.translate(W * 0.5, H * 0.5);
+      // Soft radial contrast scrim so headline pops against vortex plasma
+      const scrim = ctx.createRadialGradient(0, 0, 60, 0, 0, 640);
+      scrim.addColorStop(0, "rgba(7, 8, 12, 0.72)");
+      scrim.addColorStop(1, "rgba(7, 8, 12, 0.0)");
+      ctx.fillStyle = scrim;
+      ctx.beginPath(); ctx.arc(0, 0, 640, 0, Math.PI * 2); ctx.fill();
+
+      ctx.scale(sc, sc);
+      ctx.fillStyle = PAL.lime;
+      ctx.font = `700 16px ${FONT_MONO}`;
+      ctx.textAlign = "center";
+      drawTrackedText(ctx, `04 / CAPABILITY_${String(slot + 1).padStart(2, "0")}`, 0, -90, 5, "center");
+
+      // Double outline + solid layered typography
+      ctx.font = `900 124px ${FONT_DISPLAY}`;
+      ctx.textBaseline = "middle";
+      ctx.strokeStyle = PAL.alabaster;
+      ctx.lineWidth = 2;
+      ctx.strokeText(titles[slot], 6 * (1 - easeOutExpo(sP)), 6 * (1 - easeOutExpo(sP)));
+      ctx.fillStyle = PAL.alabaster;
+      ctx.fillText(titles[slot], 0, 0);
+      ctx.restore();
+    } else {
+      // Bar 14 (24.375 - 26.250s): Half-beat strobe polarity climax converging to singularity!
+      const fT = localT - 3.750; // 0 .. 1.875s
+      const step = Math.floor(fT / (BEAT * 0.5)); // 0..7
+      const words = ["3D", "TYPE", "UI/UX", "VFX", "CODE", "SOUND", "CRAFT", "2026"];
+      const invert = step % 2 === 1;
+      if (invert) {
+        ctx.fillStyle = step === 7 ? PAL.alabaster : PAL.lime;
+        ctx.fillRect(0, 0, W, H);
+      }
+      ctx.save();
+      ctx.translate(W * 0.5, H * 0.5);
+      const stepP = (fT % (BEAT * 0.5)) / (BEAT * 0.5);
+      const scale = lerp(1.3, 0.96, easeOutExpo(stepP));
+      ctx.scale(scale, scale);
+      ctx.fillStyle = invert ? PAL.obsidian : PAL.alabaster;
+      ctx.font = `900 240px ${FONT_DISPLAY}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(words[Math.min(7, step)], 0, 0);
+      ctx.restore();
+    }
+    drawCornerHUD(t, frame, "04 // GENERATIVE CLIMAX", false, localT < 3.75 ? 0.9 : 0.0);
+  }
+
+  // --- ACT VI: CLEAN RÉSUMÉ SIGN-OFF (26.250s - 30.000s) ---
+  function renderAct6(t, frame) {
+    const localT = t - 26.250; // 0 .. 3.750s
+    const p = localT / 3.750;
+
+    // Subtle hairline editorial border frame
+    const frameIn = easeOutExpo(invLerp(0.0, 0.35, p));
+    ctx.save();
+    ctx.strokeStyle = "rgba(245, 242, 235, 0.14)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(72, 60, (W - 144) * frameIn, H - 120);
+
+    // Custom Animated Prism-A Emblem
+    const embProg = invLerp(0.02, 0.42, p);
+    drawEmblem(ctx, W * 0.5, 315, 130, embProg, (1 - easeOutExpo(embProg)) * 0.8, PAL.alabaster, PAL.cobalt);
+
+    // Availability Pill
+    const pillA = easeOutExpo(invLerp(0.10, 0.38, p));
+    ctx.save();
+    ctx.globalAlpha = pillA;
+    roundRectPath(ctx, W * 0.5 - 235, 422 - (1 - pillA) * 15, 470, 38, 19);
+    ctx.fillStyle = "rgba(45, 91, 255, 0.22)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0, 229, 255, 0.45)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = PAL.lime;
+    ctx.font = `600 13px ${FONT_MONO}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    drawTrackedText(ctx, "AVAILABLE FOR SENIOR ROLES & DIRECTION", W * 0.5, 442 - (1 - pillA) * 15, 2.5, "center");
+    ctx.restore();
+
+    // Hero Brand Wordmark
+    drawClippedHeadline(
+      ctx,
+      "ANTIGRAVITY",
+      W * 0.5,
+      545,
+      140,
+      invLerp(0.12, 0.52, p),
+      `900 116px ${FONT_DISPLAY}`,
+      PAL.alabaster,
+      lerp(28, 8, easeOutExpo(invLerp(0.12, 0.52, p)))
+    );
+
+    // Role Subtitle
+    const subA = easeOutExpo(invLerp(0.24, 0.60, p));
+    ctx.save();
+    ctx.globalAlpha = subA;
+    ctx.fillStyle = PAL.mutedLight;
+    ctx.font = `500 22px ${FONT_DISPLAY}`;
+    ctx.textAlign = "center";
+    drawTrackedText(ctx, "MOTION DESIGNER   •   3D & GLSL SHADERS   •   CREATIVE TECHNOLOGIST", W * 0.5, 640 + (1 - subA) * 18, 3, "center");
+    ctx.restore();
+
+    // Bottom 4-Column Résumé Discipline Matrix
+    const specs = [
+      ["PIPELINE", "60FPS DETERMINISTIC"],
+      ["3D & SHADERS", "WEBGL2 / RAYMARCHING"],
+      ["TYPOGRAPHY", "KINETIC & SWISS GRID"],
+      ["AUDIO SYNC", "128 BPM SYNTH & FOLEY"],
+    ];
+    specs.forEach(([k, v], i) => {
+      const sp = easeOutExpo(invLerp(0.28 + i * 0.05, 0.65 + i * 0.05, p));
+      const colX = 240 + i * 480;
+      const colY = 825 + (1 - sp) * 28;
+      ctx.save();
+      ctx.globalAlpha = sp;
+      ctx.fillStyle = PAL.cobalt;
+      ctx.fillRect(colX - 80, colY - 24, 160 * sp, 2);
+      ctx.fillStyle = PAL.mutedLight;
+      ctx.font = `600 12px ${FONT_MONO}`;
+      ctx.textAlign = "center";
+      ctx.fillText(k, colX, colY);
+      ctx.fillStyle = PAL.alabaster;
+      ctx.font = `700 16px ${FONT_DISPLAY}`;
+      ctx.fillText(v, colX, colY + 26);
+      ctx.restore();
+    });
+
+    ctx.restore();
+  }
+
+  // =========================================================================
+  // 6. MASTER FRAME RENDERER (EXPOSED FOR DETERMINISTIC CAPTURE)
+  // =========================================================================
+  window.renderFrame = function (frameIndex) {
+    const t = frameIndex / FPS;
+    const beat = beatPulse(t, BEAT, 8.0);
+
+    // Determine WebGL2 Background Mode
+    let glMode = 0.0;
+    if (t >= 3.750 && t < 9.375) glMode = 1.0;        // Act II 3D Raymarching
+    else if (t >= 15.000 && t < 20.625) glMode = 2.0; // Act IV Spatial Aura
+    else if (t >= 20.625 && t < 26.250) glMode = 3.0; // Act V Climax Vortex
+    else if (t >= 26.250) glMode = 4.0;               // Act VI Aurora Resolve
+
+    // 1) Render WebGL2 Scene Layer
+    gl.viewport(0, 0, W, H);
+    gl.useProgram(sceneProg);
+    gl.uniform1f(gl.getUniformLocation(sceneProg, "uTime"), t);
+    gl.uniform1f(gl.getUniformLocation(sceneProg, "uMode"), glMode);
+    gl.uniform1f(gl.getUniformLocation(sceneProg, "uBeat"), beat);
+    gl.uniform1f(gl.getUniformLocation(sceneProg, "uSubProg"), 0.0);
+    gl.uniform2f(gl.getUniformLocation(sceneProg, "uRes"), W, H);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    // 2) Render Canvas2D Typography & Vector Layer
+    ctx.clearRect(0, 0, W, H);
+    if (t < 3.750) renderAct1(t, frameIndex);
+    else if (t < 9.375) renderAct2HUD(t, frameIndex);
+    else if (t < 15.000) renderAct3(t, frameIndex);
+    else if (t < 20.625) renderAct4(t, frameIndex);
+    else if (t < 26.250) renderAct5Overlay(t, frameIndex);
+    else renderAct6(t, frameIndex);
+
+    // 3) Compute Post-FX Impulses (Chromatic Aberration, Flash, Shake, Master Fade)
+    const hit1 = impulseAt(t, 1.875, 9.0);
+    const hit2 = impulseAt(t, 7.500, 7.0);
+    const hit3 = impulseAt(t, 12.65625, 10.0); // IMPACT word slam
+    const hit4 = impulseAt(t, 20.625, 8.0);
+    const hit5 = impulseAt(t, 26.250, 5.5);
+
+    const chroma = 0.0006 + (hit1 + hit2 + hit3 + hit4 + hit5) * 0.014 + (glMode === 3.0 ? beat * 0.005 : 0.0);
+    const flash = hit1 * 0.25 + hit2 * 0.22 + hit4 * 0.28 + hit5 * 0.55;
+    const shake = hit1 * 0.6 + hit3 * 1.3 + hit4 * 0.7;
+    const fadeIn = smoothstep(0.0, 0.25, t);
+    const fadeOut = 1.0 - smoothstep(29.35, 29.98, t);
+
+    // 4) Composite & Post-Process via WebGL2
+    glP.viewport(0, 0, W, H);
+    glP.useProgram(postProg);
+
+    glP.activeTexture(glP.TEXTURE0);
+    glP.bindTexture(glP.TEXTURE_2D, texScene);
+    glP.pixelStorei(glP.UNPACK_FLIP_Y_WEBGL, true);
+    glP.texImage2D(glP.TEXTURE_2D, 0, glP.RGBA, glP.RGBA, glP.UNSIGNED_BYTE, cScene);
+    glP.uniform1i(glP.getUniformLocation(postProg, "uSceneTex"), 0);
+
+    glP.activeTexture(glP.TEXTURE1);
+    glP.bindTexture(glP.TEXTURE_2D, texUi);
+    glP.pixelStorei(glP.UNPACK_FLIP_Y_WEBGL, true);
+    glP.texImage2D(glP.TEXTURE_2D, 0, glP.RGBA, glP.RGBA, glP.UNSIGNED_BYTE, c2d);
+    glP.uniform1i(glP.getUniformLocation(postProg, "uUiTex"), 1);
+
+    glP.uniform1f(glP.getUniformLocation(postProg, "uTime"), t);
+    glP.uniform1f(glP.getUniformLocation(postProg, "uChroma"), chroma);
+    glP.uniform1f(glP.getUniformLocation(postProg, "uFlash"), flash);
+    glP.uniform1f(glP.getUniformLocation(postProg, "uShake"), shake);
+    glP.uniform1f(glP.getUniformLocation(postProg, "uFade"), fadeIn * fadeOut);
+
+    glP.drawArrays(glP.TRIANGLES, 0, 6);
+  };
+
+  // Expose pixel reader for fast streaming to Node -> FFmpeg
+  const pixelBuf = new Uint8Array(W * H * 4);
+  window.captureFrameRGBA = function (frameIndex) {
+    window.renderFrame(frameIndex);
+    glP.readPixels(0, 0, W, H, glP.RGBA, glP.UNSIGNED_BYTE, pixelBuf);
+    return pixelBuf;
+  };
+
+  window.__ENGINE_READY__ = true;
+
+  const params = new URLSearchParams(location.search);
+  if (params.get("render") === "1") {
+    const startF = parseInt(params.get("start") || "0", 10);
+    const endF = parseInt(params.get("end") || String(TOTAL_FRAMES), 10);
+    (async () => {
+      for (let i = startF; i < endF; i++) {
+        const bytes = window.captureFrameRGBA(i);
+        const res = await fetch(`/frame?i=${i}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/octet-stream" },
+          body: bytes,
+        });
+        if (!res.ok) throw new Error("Server error on frame " + i);
+      }
+      await fetch("/done");
+    })().catch(err => {
+      fetch("/err?msg=" + encodeURIComponent(String(err)));
+    });
+  } else {
+    // Real-time interactive preview in any browser
+    let t0 = performance.now();
+    function loop(now) {
+      const elapsed = ((now - t0) / 1000) % 30.0;
+      window.renderFrame(Math.floor(elapsed * FPS) % TOTAL_FRAMES);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  }
+})();
+</script>
+</body>
+</html>

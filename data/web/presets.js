@@ -1,10 +1,17 @@
 // 現成配方：一組可直接使用的選取，當作起點。
+const common = {
+  quality: ["web.quality.responsive", "web.quality.a11y-basics"],
+  "anti-slop": ["web.anti-slop.no-purple-gradient", "web.anti-slop.no-emoji-icons", "web.anti-slop.no-filler-copy"],
+};
+
 export default [
   {
     id: "saas-landing",
     zh: "SaaS 產品落地頁",
     what: "標準的產品行銷單頁：首屏、信任、功能、定價、問答、號召。",
     picks: {
+      "site-type": ["web.site-type.saas-landing"],
+      layout: ["web.layout.single-column"],
       section: [
         "web.section.navbar-sticky",
         "web.section.hero-split",
@@ -15,6 +22,52 @@ export default [
         "web.section.cta-band",
         "web.section.footer-columns",
       ],
+      color: ["web.color.mono-accent", "web.color.light-only"],
+      shape: ["web.shape.rounded-corners", "web.shape.hairline-borders"],
+      motion: ["web.motion.subtle", "web.motion.scroll-reveal"],
+      media: ["web.media.product-screenshot", "web.media.line-icons"],
+      tech: ["web.tech.single-html", "web.tech.plain-css"],
+      voice: ["web.voice.plain-direct"],
+      ...common,
+    },
+  },
+  {
+    id: "portfolio",
+    zh: "個人作品集",
+    what: "以作品大圖為主角的個人網站，風格大膽、動態明顯。",
+    picks: {
+      "site-type": ["web.site-type.portfolio"],
+      layout: ["web.layout.bento-grid"],
+      section: ["web.section.navbar-sticky", "web.section.hero-split", "web.section.feature-grid", "web.section.cta-band", "web.section.footer-columns"],
+      style: ["web.style.neo-brutalism"],
+      typography: ["web.typography.geometric-sans", "web.typography.fluid-type"],
+      color: ["web.color.duotone"],
+      motion: ["web.motion.expressive", "web.motion.hover-lift", "web.motion.marquee"],
+      media: ["web.media.photography"],
+      tech: ["web.tech.static-multi", "web.tech.plain-css"],
+      voice: ["web.voice.warm-conversational"],
+      ...common,
+    },
+  },
+  {
+    id: "docs",
+    zh: "文件網站",
+    what: "三欄式的說明文件：章節目錄、文章、本頁索引，安靜好讀。",
+    picks: {
+      "site-type": ["web.site-type.docs"],
+      layout: ["web.layout.sidebar-shell"],
+      section: ["web.section.navbar-sticky", "web.section.feature-grid", "web.section.faq-accordion", "web.section.footer-columns"],
+      component: ["web.component.tabs", "web.component.toast"],
+      style: ["web.style.swiss-minimal"],
+      typography: ["web.typography.serif-display-sans-body", "web.typography.cjk-latin-mix"],
+      color: ["web.color.mono-accent", "web.color.dark-toggle"],
+      shape: ["web.shape.sharp-corners", "web.shape.hairline-borders", "web.shape.compact-density"],
+      motion: ["web.motion.none"],
+      media: ["web.media.line-icons"],
+      tech: ["web.tech.react-vite", "web.tech.tailwind", "web.tech.local-storage"],
+      quality: ["web.quality.responsive", "web.quality.a11y-basics", "web.quality.semantic-html", "web.quality.seo-meta"],
+      voice: ["web.voice.plain-direct"],
+      "anti-slop": common["anti-slop"],
     },
   },
 ];

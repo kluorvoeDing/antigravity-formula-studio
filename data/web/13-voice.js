@@ -3,14 +3,35 @@ export default {
   zh: "文案語氣",
   en: "Voice & Tone",
   intro: "網站上的文字用什麼口吻說話。",
-  groups: [
+  groups: [{ id: "main", zh: "語氣", mode: "one", min: 0, max: 1 }],
+  modules: [
     {
-      id: "main",
-      zh: "語氣",
-      mode: "one",
-      min: 0,
-      max: 1
-    }
+      id: "web.voice.plain-direct",
+      zh: "平實直接",
+      en: "Plain & Direct",
+      aka: ["Plain Language", "白話文案"],
+      what: "用最短、最白話的句子說清楚產品做什麼，不用形容詞堆砌，也不賣關子。",
+      when: ["訪客是來解決問題的，沒有耐心讀花俏文案", "產品功能具體，可以直接講"],
+      avoid: ["品牌靠故事與情感打動人", "產品差異很小，需要靠語氣建立個性"],
+      prompt: "文案平實直接：標題用一句話說出產品為使用者做到什麼，包含具體的對象或數字；每段不超過兩句；用動詞開頭的短句描述功能。不使用「革命性」「賦能」「一站式」「打造」這類空泛詞彙，不用驚嘆號，不用問句當標題。",
+      accept: "主標題是一句包含具體對象或數字的陳述句，且全站沒有驚嘆號。",
+      tags: ["文字", "專業", "入門"],
+      related: ["web.voice.warm-conversational"],
+      preview: { kind: "copy", headline: "三分鐘排好一週班表", body: "匯入名單，設定規則，其餘自動完成。", cta: "免費試用 14 天" },
+    },
+    {
+      id: "web.voice.warm-conversational",
+      zh: "親切口語",
+      en: "Warm & Conversational",
+      aka: ["Friendly Tone", "聊天感文案"],
+      what: "像朋友在跟你說話：用「你」稱呼對方、句子短、帶一點輕鬆，偶爾說出對方心裡的困擾。",
+      when: ["面向一般消費者或小型團隊", "產品想顯得好親近、沒有距離感"],
+      avoid: ["法律、金融、醫療等需要精確與莊重的內容", "企業採購情境，太輕鬆會顯得不專業"],
+      prompt: "文案親切口語：以「你」稱呼讀者，像在面對面說明；句子短，一句一個重點；先說出讀者的困擾再給解法。可以有一點幽默，但不玩需要解釋的梗；按鈕文字用第一人稱或具體動作（例如「幫我排班」）。不使用敬語堆疊與公文用詞。",
+      accept: "文案以「你」稱呼讀者，且沒有「敬請」「惠賜」「茲」這類公文用詞。",
+      tags: ["文字", "溫暖", "活潑"],
+      related: ["web.voice.plain-direct"],
+      preview: { kind: "copy", headline: "排班不用再傳二十則訊息", body: "你只要說誰哪天不行，剩下的交給我們。", cta: "幫我排班" },
+    },
   ],
-  modules: []
 };

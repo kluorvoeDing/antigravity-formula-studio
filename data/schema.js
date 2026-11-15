@@ -95,6 +95,12 @@ export const WIRE_PRIMS = [
   "tabs", "footer", "chip", "chips", "divider", "sidebar", "space", "price3", "cols4", "stack",
 ];
 
+// 預覽可用的字體角色（對應系統字體堆疊，不為預覽載入外部字體）
+export const PREVIEW_FONTS = ["sans", "serif", "mono", "round", "kai", "condensed"];
+
+// motion 預覽可用的具名動畫
+export const MOTION_NAMES = ["none", "subtle", "expressive", "fade-up", "hover-lift", "marquee"];
+
 export const LIMITS = {
   zh: [2, 14],
   en: [2, 40],

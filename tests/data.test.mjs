@@ -9,7 +9,7 @@ import { applyPreset, toggle } from "../js/engine/select.js";
 import { assemble } from "../js/engine/assemble.js";
 
 // P3 完成、所有類別都有模組後，把這個旗標改成 false。
-const ALLOW_EMPTY = true;
+const ALLOW_EMPTY = false;
 const UPDATE = process.env.UPDATE_GOLDEN === "1";
 
 const domains = {};

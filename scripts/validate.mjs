@@ -3,7 +3,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
-import { TAGS, CAPABILITIES, PREVIEW_KINDS, WIRE_PRIMS, LIMITS, BANNED, VAGUE } from "../data/schema.js";
+import { TAGS, CAPABILITIES, PREVIEW_KINDS, WIRE_PRIMS, PREVIEW_FONTS, MOTION_NAMES, LIMITS, BANNED, VAGUE } from "../data/schema.js";
 import { sanitize } from "../js/engine/select.js";
 import { check } from "../js/engine/check.js";
 
@@ -60,6 +60,76 @@ function checkPreview(errors, where, preview) {
       for (const cell of row) checkWireCell(errors, where, cell, state);
     }
     if (!state.hl) errors.push(`${where}：wire 至少要有一個 hl:true 標出這個模組本身`);
+  }
+  const oneOf = (field, list) => {
+    if (!list.includes(preview[field])) errors.push(`${where}：preview.${field} 必須是 ${list.join(" / ")} 之一`);
+  };
+  const text = (field, max, required = true) => {
+    const value = preview[field];
+    if (value === undefined && !required) return;
+    if (typeof value !== "string" || !value || len(value) > max) errors.push(`${where}：preview.${field} 需為 1–${max} 字的字串`);
+  };
+  const color = (value, field) => {
+    if (typeof value !== "string" || !COLOR_RE.test(value)) errors.push(`${where}：preview.${field} 必須是 #RRGGBB 色碼`);
+  };
+  const BORDERS = ["none", "hair", "thick"];
+  const WEIGHTS = ["light", "regular", "bold", "black"];
+  switch (preview.kind) {
+    case "specimen":
+      for (const field of ["bg", "fg", "accent"]) color(preview[field], field);
+      if (preview.surface !== undefined) color(preview.surface, "surface");
+      if (!(Number.isFinite(preview.radius) && preview.radius >= 0 && preview.radius <= 32)) errors.push(`${where}：preview.radius 需為 0–32`);
+      oneOf("border", BORDERS);
+      oneOf("shadow", ["none", "soft", "hard", "glow", "inset"]);
+      oneOf("font", PREVIEW_FONTS);
+      oneOf("weight", WEIGHTS);
+      if (preview.effect !== undefined) oneOf("effect", ["glass", "grain", "grid", "gradient"]);
+      break;
+    case "type":
+      oneOf("display", PREVIEW_FONTS);
+      oneOf("body", PREVIEW_FONTS);
+      oneOf("weight", WEIGHTS);
+      oneOf("tracking", ["tight", "normal", "wide"]);
+      oneOf("size", ["normal", "large", "huge"]);
+      text("heading", 14);
+      text("text", 26);
+      break;
+    case "palette":
+      if (!Array.isArray(preview.colors) || preview.colors.length < 2 || preview.colors.length > 6) {
+        errors.push(`${where}：palette 需要 2–6 個顏色`);
+        break;
+      }
+      for (const c of preview.colors) {
+        color(c?.hex, "colors.hex");
+        if (typeof c?.name !== "string" || !c.name || len(c.name) > 8) errors.push(`${where}：palette 顏色需要 1–8 字的 name`);
+        if (!(Number.isFinite(c?.share) && c.share > 0 && c.share <= 100)) errors.push(`${where}：palette 顏色的 share 需為 1–100`);
+      }
+      break;
+    case "shape":
+      if (!(Number.isFinite(preview.radius) && preview.radius >= 0 && preview.radius <= 32)) errors.push(`${where}：preview.radius 需為 0–32`);
+      oneOf("border", BORDERS);
+      oneOf("shadow", ["none", "soft", "layered", "hard"]);
+      oneOf("gap", ["tight", "normal", "loose"]);
+      break;
+    case "motion":
+      oneOf("name", MOTION_NAMES);
+      break;
+    case "tree":
+      if (!Array.isArray(preview.lines) || !preview.lines.length || preview.lines.length > 9) errors.push(`${where}：tree 需要 1–9 行`);
+      else for (const l of preview.lines) if (typeof l !== "string" || len(l) > 40) errors.push(`${where}：tree 每行需為 40 字以內的字串`);
+      break;
+    case "copy":
+      text("headline", 22);
+      text("body", 44, false);
+      text("cta", 10, false);
+      break;
+    case "versus":
+      text("dont", 30);
+      text("do", 30);
+      break;
+    case "custom":
+      text("name", 30);
+      break;
   }
   const scan = (value) => {
     if (typeof value === "string") {
@@ -124,7 +194,7 @@ function checkModule(errors, module, category, domain, groupIds) {
       if (HTML_RE.test(value)) errors.push(`${where}：字串中不得含 HTML 標籤`);
     } else if (value && typeof value === "object") Object.values(value).forEach(scanHtml);
   };
-  scanHtml(module);
+  scanHtml(module.preview?.kind === "tree" ? { ...module, preview: undefined } : module);
 }
 
 /** 檢查一個主題的全部資料。回傳 { errors, warnings, count }。 */

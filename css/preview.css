@@ -1,0 +1,89 @@
+/* 預覽基元。刻意保持中性：只用線條色、底色與一個標示色，不跟隨站台的裝飾風格。 */
+.pv {
+  --pv-ink: #9aa1a9;
+  --pv-fill: #e6e8eb;
+  --pv-paper: #ffffff;
+  --pv-hl: #1f6feb;
+  --pv-hl-fill: color-mix(in srgb, var(--pv-hl) 16%, var(--pv-paper));
+  contain: layout paint style;
+  background: var(--pv-paper);
+  color: var(--pv-ink);
+  display: flex;
+  flex-direction: column;
+  gap: 5%;
+  padding: 6% 7%;
+  overflow: hidden;
+}
+.pv-desktop { aspect-ratio: 16 / 10; }
+.pv-mobile { aspect-ratio: 9 / 16; max-height: 100%; margin-inline: auto; }
+
+.pv-rowline { display: flex; gap: 4%; flex: 1 1 0; min-height: 0; align-items: stretch; }
+.pv-rowline:has(> .pv-nav, > .pv-h1, > .pv-h2, > .pv-p, > .pv-logos, > .pv-tabs, > .pv-footer, > .pv-divider, > .pv-btn, > .pv-btns, > .pv-chips, > .pv-link) { flex: 0 0 auto; }
+
+.pv-cell {
+  flex: var(--span, 1) 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  --c: var(--pv-ink);
+  --f: var(--pv-fill);
+}
+.pv-cell.is-hl, .pv-cell.is-hl .pv-cell { --c: var(--pv-hl); --f: var(--pv-hl-fill); }
+.pv-stack { gap: 7px; }
+
+.pv i, .pv-grow { display: block; }
+.pv-line { height: 3px; width: var(--w, 60%); background: var(--c); border-radius: 2px; opacity: 0.75; }
+.pv-h1 .pv-line { height: 6px; opacity: 1; }
+.pv-h2 .pv-line { height: 5px; opacity: 1; }
+.pv-h2, .pv-h1:only-child { align-items: flex-start; }
+.pv-box { border: 1.5px solid var(--c); background: var(--f); border-radius: 2px; }
+.pv-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.pv-dot.pv-big { width: 22px; height: 22px; }
+.pv-pill { width: 30px; height: 9px; border-radius: 5px; flex: none; background: transparent; }
+.pv-pill.pv-solid { background: var(--c); }
+.pv-pill.pv-small { width: 22px; height: 7px; }
+.pv-input { height: 10px; width: 100%; background: transparent; }
+.pv-logo { width: 13%; height: 8px; border: 0; background: var(--c); opacity: 0.45; border-radius: 2px; }
+.pv-hr { height: 1.5px; width: 100%; background: var(--c); }
+.pv-grow { flex: 1; }
+.pv-row { display: flex; align-items: center; gap: 5px; }
+.pv-rule { border-bottom: 1.5px solid var(--f); padding-block: 3px; }
+.pv-is-hl .pv-rule, .is-hl .pv-rule { border-bottom-color: var(--c); }
+.pv-chev { width: 5px; height: 5px; border-width: 0 1.5px 1.5px 0; background: none; transform: rotate(-45deg); border-radius: 0; flex: none; }
+.pv-chev.pv-open { transform: rotate(45deg); }
+
+.pv-img {
+  flex: 1;
+  min-height: 18px;
+  background:
+    linear-gradient(to top right, transparent calc(50% - 0.75px), var(--c) calc(50% - 0.75px), var(--c) calc(50% + 0.75px), transparent calc(50% + 0.75px)),
+    linear-gradient(to top left, transparent calc(50% - 0.75px), var(--c) calc(50% - 0.75px), var(--c) calc(50% + 0.75px), transparent calc(50% + 0.75px)),
+    var(--f);
+}
+.pv-video { background: var(--f); position: relative; }
+.pv-video::after { content: ""; position: absolute; inset: 0; margin: auto; width: 0; height: 0; border: 6px solid transparent; border-left: 10px solid var(--c); translate: 4px 0; }
+
+.pv-nav, .pv-footer, .pv-logos, .pv-tabs, .pv-btns, .pv-chips { flex-direction: row; align-items: center; justify-content: flex-start; gap: 6px; }
+.pv-nav { border-bottom: 1.5px solid var(--f); padding-bottom: 5px; }
+.pv-nav.is-hl { border-bottom-color: var(--c); background: var(--f); padding: 5px; margin: -5px -5px 0; }
+.pv-footer { border-top: 1.5px solid var(--f); padding-top: 5px; }
+.pv-logos { justify-content: space-between; }
+.pv-tabs, .pv-stack > .pv-btn, .pv-stack > .pv-btns { justify-content: flex-start; }
+.pv-rowline > .pv-tabs:only-child, .pv-rowline > .pv-logos:only-child { justify-content: center; gap: 8%; }
+
+.pv-cards3, .pv-cards4, .pv-stats3, .pv-price3, .pv-cols4 { flex-direction: row; align-items: stretch; gap: 5%; }
+.pv-card, .pv-stat, .pv-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+.pv-card { border: 1.5px solid var(--c); background: var(--f); border-radius: 3px; padding: 6px; }
+.pv-stat .pv-line:first-child { height: 7px; opacity: 1; }
+.pv-price { align-items: flex-start; }
+.pv-price .pv-pill { margin-top: 3px; }
+.pv-price3 { align-items: center; }
+.pv-featured { border-width: 2.5px; padding-block: 11px; background: var(--pv-paper); }
+.pv-form { gap: 5px; align-items: flex-start; }
+.pv-accordion, .pv-table, .pv-list, .pv-sidebar { justify-content: flex-start; gap: 4px; }
+.pv-accordion > .pv-line { margin-left: 2px; }
+.pv-stack.is-hl:has(> .pv-h2):not(:has(> .pv-h1)) { align-items: center; background: var(--f); padding: 8px; border-radius: 3px; }
+.pv-stack.is-hl:has(> .pv-h2):not(:has(> .pv-h1)) > .pv-cell { align-items: center; flex: 0 0 auto; width: 100%; }
+.pv-stack > .pv-cell { flex: 0 0 auto; }

@@ -47,11 +47,10 @@ UPDATE_GOLDEN=1 node --test "tests/*.test.mjs"   # 模組或範本改動後更�
 
 ## Git 與部署
 
-- 工作分支：`redesign`（已推到 GitHub）。`main` 還停在舊版；舊版另有標籤 `v2.5`。
-- **正式站目前跑的是 `redesign` 的內容**（2026-11-16 部署，對應 commit `befefc3`：239 個模組、搜尋、矛盾檢查）：<https://antigravity-formula-studio.vercel.app>
+- `redesign` 已於 2026-11-16 合併回 `main`（快轉），兩者一致。之後直接在 `main` 開新分支工作即可。舊版保留在標籤 `v2.5`。
+- **正式站目前跑的是 `main` 的內容**（2026-11-16 部署，對應 commit `befefc3`：239 個模組、搜尋、矛盾檢查）：<https://antigravity-formula-studio.vercel.app>
 - GitHub **沒有**連動 Vercel。上線靠 CLI：`vercel deploy --prod --yes`。預覽部署（不加 `--prod`）需要登入 Vercel 才看得到。
 - **每次部署到正式站、合併到 `main` 之前，都要先取得使用者明確同意。** 權限機制也會擋下未經同意的正式部署。
-- 尚未決定：是否把 `redesign` 合併回 `main`。目前兩者不一致，請向使用者確認。
 - 退回舊版：`git checkout v2.5` 後 `vercel deploy --prod`，或在 Vercel 後台把上一個正式部署重新 promote。
 - 部署後檢查：`/.env.local`、`/output/…`、`/scripts/…`、`/tests/…`、`/docs/…` 都應回 404（由 `.vercelignore` 控制）。
 - commit 訊息用英文、祈使句，結尾加上當下模型的 `Co-Authored-By` 行。
@@ -189,4 +188,4 @@ tests/                  fixture.mjs 是測試用小主題；golden/ 是三個配
 - 右欄「已選模組」清單高度上限 30vh，選很多時要在小區域內捲動。
 - 個人風格編輯器的選填顏色（卡片底色、次要文字、點綴色）未勾選時仍顯示灰色色塊，容易誤會。
 - 預覽的字體用系統字體堆疊，Windows 上的明體、圓體樣本會和 macOS 長得不一樣。
-- 網站名稱「配方圖鑑／Prompt Field Guide」是暫定的，使用者還沒確認。
+- 網站名稱「配方圖鑑／Prompt Field Guide」使用者已於 2026-11-16 確認。

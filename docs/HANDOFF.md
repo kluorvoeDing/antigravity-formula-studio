@@ -38,7 +38,7 @@
 ```bash
 python3 -m http.server 4173        # 本機預覽，開 http://localhost:4173
 node scripts/validate.mjs          # 資料與原始碼檢查，必須「檢查通過」
-node --test "tests/*.test.mjs"     # 目前 30 項，全部要過
+node --test "tests/*.test.mjs"     # 全部要過
 node scripts/assemble.mjs web --preset saas-landing --name "Tidepool"   # 印出提示詞
 UPDATE_GOLDEN=1 node --test "tests/*.test.mjs"   # 模組或範本改動後更新 golden
 ```
@@ -64,6 +64,7 @@ css/tokens.css          設計變數；[data-hue="0…9"] 是十個步驟的顏�
 css/app.css             站台樣式
 css/preview.css         預覽基元（.pv-*）；刻意中性，不跟站台外觀
 data/schema.js          常數：TAGS、WIRE_PRIMS、PREVIEW_FONTS、MOTION_NAMES、LIMITS、BANNED、VAGUE
+data/facets.js          面向（陰影、圓角、漸層、深淺色）與可用的值
 data/registry.js        主題的動態載入表（目前只有 web）
 data/styles.js          內建的個人風格
 data/web/index.js       步驟、類別順序
@@ -127,10 +128,22 @@ tests/                  fixture.mjs 是測試用小主題；golden/ 是三個配
 - 新的動態預覽：加進 `MOTION_NAMES`、`js/preview/kinds.js` 的 `renderMotion`、`css/preview.css` 的 keyframes。動畫預設暫停，滑鼠移到卡片上才播放。
 - 玻璃擬態這類靠變數分不出來的風格，可以在 `renderSpecimen` 用 `effect` 加一個具名效果。
 
+## 提示詞互相矛盾：怎麼處理（不靠 AI）
+
+使用者問過要不要串 AI API 來「優化」提示詞以消除矛盾。結論是不需要，改用三層確定性的做法：
+
+1. **源頭**：模組不替別的類別做決定（見上方「內容品質的教訓」與 `AUTHORING.md`）。
+2. **面向檢查**（`data/facets.js`、`js/engine/check.js`）：模組用 `sets` 宣告自己對整站面向的要求（目前有 `shadow`、`radius`、`gradient`、`theme`）。兩個已選模組對同一面向要求不同時，右欄會出現紅色提醒，點了跳到該步驟。被個人風格接管的類別不參與。`validate.mjs` 會檢查 `sets` 的鍵與值，配方（presets）若有面向衝突也會報錯。
+3. **優先順序條款**（`data/web/template.js` 的「任務」段落）：提示詞明講牴觸時誰優先，並要求把取捨列入「我的假設」。收到提示詞的本來就是 AI，由它在執行時依規則取捨，不需要另一個 AI 先改寫。
+
+**待辦**：`sets` 目前只標了視覺風格的 12 個、間距與形狀的 6 個、色彩的 2 個。還沒標的：視覺風格其餘 6 個（terminal、luxury-minimal、hand-drawn、bauhaus、memphis、organic）、`color-blocking`、禁令類（例如 `no-purple-gradient` 應為 `gradient: "none"`、`no-default-shadows`、`no-glass-everywhere`）。標註前要讀該模組的 `prompt`，只有它明確規定時才標。需要新的面向（例如 `border`、`glass`、`motion`）就加進 `data/facets.js`。
+
+若日後仍想提供「AI 潤稿」：做成選用功能，使用者自己貼金鑰、只存在瀏覽器本機；CSP 的 `connect-src` 要加上該 API 的網域。不要讓它成為產生提示詞的必要步驟。
+
 ## P4：學習功能（依建議順序）
 
-1. **全站搜尋**：頁首加搜尋框；每個模組建一條小寫字串（`zh`、`en`、`aka`、`tags`、`what`），空白分詞後做 AND 子字串比對；結果取代中欄並依類別分組，點擊後跳到該步驟並捲到卡片（卡片的 id 是 `m-<模組 id>`）。快速鍵 `/`。搜尋邏輯寫成純函式放 `js/search.js` 並加測試。
-2. **模組詳情與相關名詞**：卡片上顯示 `related` 的連結，點了跳到那個模組。`aka` 也顯示出來（「又稱」）。
+1. ~~全站搜尋~~：**已完成**（`js/search.js`、頁首搜尋框、快速鍵 `/` 與 Esc）。
+2. ~~相關名詞與別名~~：**已完成**（卡片顯示「又稱」與「相關」，點相關名詞會跳到該模組，由 `main.js` 的 `openModule` 處理）。
 3. **點提示詞的行跳回模組**：`recipe.js` 已經記錄每一行對應的 `moduleId`（`lines` 陣列），目前只做了滑過卡片時標亮該行，反方向還沒做。
 4. **匯入匯出 JSON**：匯出 `snapshot()` 的內容；匯入一律經過 `sanitize()` 與 `sanitizeStyle()`。
 5. **分享連結**：只把模組 id 放進網址，不放簡述文字與個人風格；載入時經 `sanitize()`，套用後把參數從網址移除。

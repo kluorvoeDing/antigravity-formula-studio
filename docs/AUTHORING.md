@@ -29,6 +29,7 @@
 | `related` | 選填。讀者接著可能想看的模組 id。 |
 | `conflicts` | 選填。跨分組的互斥（同一個單選組內不用寫）。 |
 | `requires` | 選填。`[{ anyOf: [id...], why: "原因" }]`。 |
+| `sets` | 選填。這個模組對整站某個「面向」的要求，例如 `{ shadow: "none", radius: "sharp" }`。可用的面向與值見 `data/facets.js`。只有模組明確規定該面向時才寫；兩個已選模組的 `sets` 不一致時，介面會提醒使用者擇一。 |
 | `needs` | 選填。執行這個選項的 AI 需要的能力：`files`、`shell`、`network`。 |
 | `note` | 選填。只顯示在介面、不進提示詞的提醒。 |
 | `preview` | 看得見的模組必填。見「預覽」一節。 |

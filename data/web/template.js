@@ -14,6 +14,11 @@ export default {
         { kind: "text", requires: ["oneLiner"], text: "一句話定位：{oneLiner}" },
         { kind: "fixed", format: "plain", lines: ["本文件是完整規格。請一次完成全部內容，不要只給大綱、片段或示意。"] },
         { kind: "unclear" },
+        {
+          kind: "fixed",
+          format: "plain",
+          lines: ["各項要求若互相牴觸，排在前面的優先：個人風格、禁止事項、視覺風格、色彩與字體與形狀、整體版型、個別區塊與元件。取捨的結果請一併列入「我的假設」。"],
+        },
       ],
     },
     {

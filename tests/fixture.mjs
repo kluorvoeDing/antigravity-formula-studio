@@ -49,9 +49,9 @@ export function makeDomain() {
           { id: "extra", zh: "細節", mode: "many", min: 0, max: 2, defaults: ["t.color.x1"] },
         ],
         modules: [
-          mod("t.color.mono", { group: "scheme", conflicts: ["t.color.x2"] }),
+          mod("t.color.mono", { group: "scheme", conflicts: ["t.color.x2"], sets: { shadow: "none" } }),
           mod("t.color.duo", { group: "scheme" }),
-          mod("t.color.x1", { group: "extra" }),
+          mod("t.color.x1", { group: "extra", sets: { radius: "sharp" } }),
           mod("t.color.x2", { group: "extra" }),
         ],
       },
@@ -65,7 +65,7 @@ export function makeDomain() {
           { id: "extra", zh: "加值", mode: "many", min: 0, max: 2 },
         ],
         modules: [
-          mod("t.tech.single", { group: "delivery" }),
+          mod("t.tech.single", { group: "delivery", sets: { shadow: "hard", radius: "sharp" } }),
           mod("t.tech.server", { group: "delivery", needs: ["files", "shell"] }),
           mod("t.tech.form", { group: "extra", requires: [{ anyOf: ["t.tech.server"], why: "需要伺服器" }] }),
         ],

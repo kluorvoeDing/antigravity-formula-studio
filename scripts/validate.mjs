@@ -4,6 +4,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import { TAGS, CAPABILITIES, PREVIEW_KINDS, WIRE_PRIMS, PREVIEW_FONTS, MOTION_NAMES, LIMITS, BANNED, VAGUE } from "../data/schema.js";
+import { FACETS } from "../data/facets.js";
 import { sanitize } from "../js/engine/select.js";
 import { check } from "../js/engine/check.js";
 
@@ -184,6 +185,14 @@ function checkModule(errors, module, category, domain, groupIds) {
   if (module.group !== undefined && !groupIds.has(module.group)) errors.push(`${where}：group "${module.group}" 不存在於 ${category.id}`);
   for (const cap of module.needs ?? []) if (!CAPABILITIES.includes(cap)) errors.push(`${where}：needs "${cap}" 不存在`);
   if (module.preview !== undefined) checkPreview(errors, where, module.preview);
+  if (module.sets !== undefined) {
+    if (!module.sets || typeof module.sets !== "object" || Array.isArray(module.sets)) errors.push(`${where}：sets 必須是物件`);
+    else
+      for (const [facet, value] of Object.entries(module.sets)) {
+        if (!FACETS[facet]) errors.push(`${where}：sets 的面向 "${facet}" 不存在（見 data/facets.js）`);
+        else if (!FACETS[facet].values[value]) errors.push(`${where}：sets.${facet} 的值 "${value}" 不存在`);
+      }
+  }
 
   for (const field of ["prompt", "accept"]) {
     if (typeof module[field] !== "string") continue;

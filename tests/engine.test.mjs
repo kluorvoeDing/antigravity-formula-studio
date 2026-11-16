@@ -114,6 +114,17 @@ test("check：必填、下限、衝突、相依", () => {
   assert.deepEqual(check(domain, clash).map((i) => i.code), ["conflict"]);
 });
 
+test("check：兩個模組對同一個面向要求不同時提醒；要求相同或被個人風格接管時不提醒", () => {
+  const base = pick(emptyRecipe(domain), "t.kind.a", "t.part.p1", "t.part.p2");
+  const clash = check(domain, pick(base, "t.color.mono", "t.tech.single"));
+  assert.deepEqual(clash.map((i) => i.code), ["facet"]);
+  assert.match(clash[0].msg, /陰影的要求互相矛盾：「名稱-mono」要不用陰影，「名稱-single」要不模糊的硬邊陰影/);
+  assert.deepEqual(clash[0].ids, ["t.color.mono", "t.tech.single"]);
+
+  assert.deepEqual(check(domain, pick(base, "t.color.x1", "t.tech.single")), []);
+  assert.deepEqual(check(domain, pick(base, "t.color.mono", "t.tech.single"), style), []);
+});
+
 test("stepStatus 與 capabilities", () => {
   const r = pick(emptyRecipe(domain), "t.kind.a", "t.part.p1", "t.tech.server");
   assert.equal(stepStatus(domain, r, "kind"), "done");

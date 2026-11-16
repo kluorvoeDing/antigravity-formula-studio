@@ -1,4 +1,5 @@
 // 配方檢查：必填、下限、衝突、相依、長度，以及所需的 agent 能力。
+import { FACETS } from "../../data/facets.js";
 import { indexDomain, allPicked, picksInGroup } from "./domain.js";
 
 export const SOFT_LIMIT = 35;
@@ -51,6 +52,27 @@ export function check(domain, recipe, style = null) {
         ids: [id, ...rule.anyOf],
       });
     }
+  }
+
+  const byFacet = new Map();
+  for (const id of picked) {
+    const { module, category } = ix.modules.get(id);
+    if (overridden.has(category.id)) continue;
+    for (const [facet, value] of Object.entries(module.sets ?? {})) {
+      if (!FACETS[facet]?.values[value]) continue;
+      if (!byFacet.has(facet)) byFacet.set(facet, []);
+      byFacet.get(facet).push({ id, value });
+    }
+  }
+  for (const [facet, claims] of byFacet) {
+    if (new Set(claims.map((c) => c.value)).size < 2) continue;
+    const detail = claims.map((c) => `「${name(c.id)}」要${FACETS[facet].values[c.value]}`).join("，");
+    issues.push({
+      level: "warn",
+      code: "facet",
+      msg: `${FACETS[facet].zh}的要求互相矛盾：${detail}。請擇一`,
+      ids: claims.map((c) => c.id),
+    });
   }
 
   if (picked.length > SOFT_LIMIT) {

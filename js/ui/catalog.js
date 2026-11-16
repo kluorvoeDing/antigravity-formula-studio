@@ -4,6 +4,7 @@ import { renderPreview } from "../preview/index.js";
 import { indexDomain, picksInGroup } from "../engine/domain.js";
 import { currentStyle } from "../state.js";
 import { STYLE_OVERRIDES } from "../persist.js";
+import { buildIndex, search } from "../search.js";
 
 const NEEDS = { files: "需要能建立檔案的 AI", shell: "需要能執行指令的 AI", network: "需要能連網的 AI" };
 const COLOR_LABELS = { bg: "背景", surface: "區塊底", fg: "文字", muted: "次要文字", accent: "強調", pop: "點綴" };
@@ -14,8 +15,9 @@ function ruleText(group) {
   return group.ordered ? `${range}，選取順序就是頁面順序` : range;
 }
 
-export function mountCatalog(el, store, domain, actions, { highlight, editStyle }) {
+export function mountCatalog(el, store, domain, actions, { highlight, editStyle, openModule }) {
   const ix = indexDomain(domain);
+  const searchIndex = buildIndex(domain);
   let cards = new Map();
   let counters = new Map();
 
@@ -52,6 +54,7 @@ export function mountCatalog(el, store, domain, actions, { highlight, editStyle 
         "div",
         { class: "card-body" },
         h("h3", { class: "card-name" }, h("span", { class: "zh" }, module.zh), h("span", { class: "en", lang: "en" }, module.en)),
+        module.aka?.length > 0 && h("p", { class: "aka" }, "又稱：", module.aka.join("、")),
         h("p", { class: "what" }, module.what),
         h(
           "div",
@@ -60,6 +63,15 @@ export function mountCatalog(el, store, domain, actions, { highlight, editStyle 
           h("section", { class: "use" }, h("h4", {}, "何時別用"), h("ul", {}, module.avoid.map((t) => h("li", {}, t)))),
         ),
         figure && module.note && h("p", { class: "note" }, module.note),
+        module.related?.length > 0 &&
+          h(
+            "p",
+            { class: "related" },
+            "相關：",
+            module.related
+              .filter((id) => ix.modules.has(id))
+              .map((id) => h("button", { type: "button", on: { click: () => openModule(id) } }, ix.modules.get(id).module.zh)),
+          ),
         module.needs?.length > 0 && h("p", { class: "needs" }, module.needs.map((n) => h("span", {}, NEEDS[n]))),
         h("div", { class: "card-foot" }, h("span", { class: "tags" }, module.tags.map((t) => h("span", {}, t))), button),
       ),
@@ -230,6 +242,45 @@ export function mountCatalog(el, store, domain, actions, { highlight, editStyle 
     ];
   }
 
+  function renderSearch(state) {
+    const hits = search(searchIndex, state.query);
+    const groups = new Map();
+    for (const hit of hits) {
+      if (!groups.has(hit.category.id)) groups.set(hit.category.id, []);
+      groups.get(hit.category.id).push(hit);
+    }
+    return [
+      h(
+        "header",
+        { class: "catalog-head is-search" },
+        h("p", { class: "catalog-step" }, "搜尋"),
+        h("h1", {}, `「${state.query.trim()}」`),
+        h("p", { class: "intro" }, hits.length ? `找到 ${hits.length} 個模組。可以直接加入配方，或按 Esc 回到步驟。` : "沒有符合的模組。試試英文術語、別的說法，或更短的關鍵字。"),
+      ),
+      [...groups.values()].map((list) => {
+        const { category, step, stepIndex } = list[0];
+        return h(
+          "section",
+          { class: "category", data: { hue: stepIndex } },
+          h(
+            "header",
+            { class: "category-head" },
+            h("h2", {}, category.zh, h("span", { class: "en", lang: "en" }, category.en)),
+            h("p", {}, h("button", { type: "button", class: "text-button", on: { click: () => openModule(list[0].module.id) } }, `前往步驟 ${stepIndex}：${step.zh}`)),
+          ),
+          h(
+            "div",
+            { class: "cards" },
+            list.map(({ module }) => {
+              const group = ix.modules.get(module.id).group;
+              return renderCard(state, module, category, group, `${stepIndex}-${String(category.modules.indexOf(module) + 1).padStart(2, "0")}`);
+            }),
+          ),
+        );
+      }),
+    ];
+  }
+
   function patch(state) {
     for (const { card, button, module, group, category } of cards.values()) {
       const picked = (state.recipe.picks[category.id] ?? []).includes(module.id);
@@ -250,13 +301,17 @@ export function mountCatalog(el, store, domain, actions, { highlight, editStyle 
     cards = new Map();
     counters = new Map();
     const step = domain.steps.find((s) => s.id === state.stepId);
-    mount(el, step.kind === "start" ? renderStart(state) : renderStep(state));
+    const view = state.query.trim() ? renderSearch(state) : step.kind === "start" ? renderStart(state) : renderStep(state);
+    mount(el, view);
     patch(state);
   }
 
   store.subscribe((state, prev) => {
     const styleChanged = state.styles !== prev.styles || state.recipe.styleId !== prev.recipe.styleId;
-    if (state.stepId !== prev.stepId) {
+    if (state.query !== prev.query) {
+      render(state);
+      if (!state.query.trim() !== !prev.query.trim()) window.scrollTo({ top: 0 });
+    } else if (state.stepId !== prev.stepId) {
       render(state);
       window.scrollTo({ top: 0 });
       el.focus({ preventScroll: true });

@@ -11,7 +11,7 @@ export function createActions(store, domain, { toast, confirm }) {
 
   return {
     goStep(stepId) {
-      if (domain.steps.some((s) => s.id === stepId)) store.set({ stepId });
+      if (domain.steps.some((s) => s.id === stepId)) store.set({ stepId, query: "" });
     },
 
     toggleModule(moduleId) {

@@ -2,6 +2,7 @@
 import registry from "../data/registry.js";
 import builtinStyles from "../data/styles.js";
 import { createStore } from "./store.js";
+import { indexDomain } from "./engine/domain.js";
 import { createActions } from "./state.js";
 import { STORAGE_KEY, LEGACY_KEY, restore, snapshot, readStorage, writeStorage, parseHash } from "./persist.js";
 import { createToast } from "./ui/toast.js";
@@ -13,7 +14,7 @@ import { createStyleEditor } from "./ui/style-editor.js";
 const domain = (await registry.web()).default;
 
 const saved = readStorage(STORAGE_KEY);
-const initial = { ...restore(saved, domain, builtinStyles, saved ? null : readStorage(LEGACY_KEY)), rev: 0 };
+const initial = { ...restore(saved, domain, builtinStyles, saved ? null : readStorage(LEGACY_KEY)), rev: 0, query: "" };
 const fromHash = parseHash(location.hash, domain);
 if (fromHash) initial.stepId = fromHash;
 
@@ -28,9 +29,40 @@ setHue(initial);
 
 mountSteps(document.getElementById("steps"), store, domain, actions);
 const recipeView = mountRecipe(document.getElementById("recipe"), store, domain, actions, toast);
+const searchInput = document.getElementById("search");
+const setQuery = (query) => {
+  if (searchInput.value !== query) searchInput.value = query;
+  if (store.get().query !== query) store.set({ query });
+};
+searchInput.addEventListener("input", () => setQuery(searchInput.value));
+searchInput.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    setQuery("");
+    searchInput.blur();
+  }
+});
+
+/** 離開搜尋、切到模組所在的步驟，並把那張卡片捲到畫面上。 */
+function openModule(moduleId) {
+  const entry = indexDomain(domain).modules.get(moduleId);
+  if (!entry) return;
+  const step = domain.steps.find((s) => s.categories?.includes(entry.category.id));
+  setQuery("");
+  if (step) actions.goStep(step.id);
+  requestAnimationFrame(() => {
+    const card = document.getElementById(`m-${moduleId}`);
+    if (!card) return;
+    card.scrollIntoView({ block: "center" });
+    card.querySelector(".add")?.focus({ preventScroll: true });
+    card.classList.add("is-flash");
+    setTimeout(() => card.classList.remove("is-flash"), 1600);
+  });
+}
+
 mountCatalog(document.getElementById("catalog"), store, domain, actions, {
   highlight: (id) => recipeView.highlight(id),
   editStyle: (style) => styleEditor.open(style),
+  openModule,
 });
 
 let saveTimer;
@@ -49,10 +81,16 @@ window.addEventListener("popstate", () => {
   if (stepId) actions.goStep(stepId);
 });
 
-// 快速鍵：[ 與 ] 切換上一步、下一步（輸入文字時不作用）
+// 快速鍵：/ 搜尋、Esc 離開搜尋、[ 與 ] 切換上一步與下一步（輸入文字時不作用）
 document.addEventListener("keydown", (event) => {
   if (event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.target.closest("input, textarea, select, dialog, [contenteditable]")) return;
+  if (event.key === "/") {
+    event.preventDefault();
+    searchInput.focus();
+    return;
+  }
+  if (event.key === "Escape" && store.get().query) return setQuery("");
   const move = event.key === "[" ? -1 : event.key === "]" ? 1 : 0;
   if (!move) return;
   const next = domain.steps[stepIndex(store.get().stepId) + move];

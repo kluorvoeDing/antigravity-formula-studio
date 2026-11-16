@@ -48,7 +48,7 @@ UPDATE_GOLDEN=1 node --test "tests/*.test.mjs"   # 模組或範本改動後更�
 ## Git 與部署
 
 - 工作分支：`redesign`（已推到 GitHub）。`main` 還停在舊版；舊版另有標籤 `v2.5`。
-- **正式站目前跑的是 `redesign` 的內容**（2026-11-16 部署）：<https://antigravity-formula-studio.vercel.app>
+- **正式站目前跑的是 `redesign` 的內容**（2026-11-16 部署，對應 commit `befefc3`：239 個模組、搜尋、矛盾檢查）：<https://antigravity-formula-studio.vercel.app>
 - GitHub **沒有**連動 Vercel。上線靠 CLI：`vercel deploy --prod --yes`。預覽部署（不加 `--prod`）需要登入 Vercel 才看得到。
 - **每次部署到正式站、合併到 `main` 之前，都要先取得使用者明確同意。** 權限機制也會擋下未經同意的正式部署。
 - 尚未決定：是否把 `redesign` 合併回 `main`。目前兩者不一致，請向使用者確認。

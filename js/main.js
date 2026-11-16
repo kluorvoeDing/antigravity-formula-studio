@@ -1,0 +1,60 @@
+// 啟動：載入主題、還原狀態、掛載三欄。
+import registry from "../data/registry.js";
+import builtinStyles from "../data/styles.js";
+import { createStore } from "./store.js";
+import { createActions } from "./state.js";
+import { STORAGE_KEY, LEGACY_KEY, restore, snapshot, readStorage, writeStorage, parseHash } from "./persist.js";
+import { createToast } from "./ui/toast.js";
+import { mountSteps } from "./ui/steps.js";
+import { mountCatalog } from "./ui/catalog.js";
+import { mountRecipe } from "./ui/recipe.js";
+import { createStyleEditor } from "./ui/style-editor.js";
+
+const domain = (await registry.web()).default;
+
+const saved = readStorage(STORAGE_KEY);
+const initial = { ...restore(saved, domain, builtinStyles, saved ? null : readStorage(LEGACY_KEY)), rev: 0 };
+const fromHash = parseHash(location.hash, domain);
+if (fromHash) initial.stepId = fromHash;
+
+const store = createStore(initial);
+const toast = createToast(document.body);
+const actions = createActions(store, domain, { toast, confirm: (message) => window.confirm(message) });
+const styleEditor = createStyleEditor(document.body, actions);
+
+const stepIndex = (id) => domain.steps.findIndex((s) => s.id === id);
+const setHue = (state) => (document.body.dataset.hue = String(stepIndex(state.stepId)));
+setHue(initial);
+
+mountSteps(document.getElementById("steps"), store, domain, actions);
+const recipeView = mountRecipe(document.getElementById("recipe"), store, domain, actions, toast);
+mountCatalog(document.getElementById("catalog"), store, domain, actions, {
+  highlight: (id) => recipeView.highlight(id),
+  editStyle: (style) => styleEditor.open(style),
+});
+
+let saveTimer;
+store.subscribe((state, prev) => {
+  if (state.stepId !== prev.stepId) {
+    setHue(state);
+    const hash = `#${domain.id}/${state.stepId}`;
+    if (location.hash !== hash) history.pushState(null, "", hash);
+  }
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => writeStorage(STORAGE_KEY, snapshot(state, builtinStyles)), 300);
+});
+
+window.addEventListener("popstate", () => {
+  const stepId = parseHash(location.hash, domain);
+  if (stepId) actions.goStep(stepId);
+});
+
+// 快速鍵：[ 與 ] 切換上一步、下一步（輸入文字時不作用）
+document.addEventListener("keydown", (event) => {
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.target.closest("input, textarea, select, dialog, [contenteditable]")) return;
+  const move = event.key === "[" ? -1 : event.key === "]" ? 1 : 0;
+  if (!move) return;
+  const next = domain.steps[stepIndex(store.get().stepId) + move];
+  if (next) actions.goStep(next.id);
+});

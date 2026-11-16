@@ -1,0 +1,11 @@
+output/
+scripts/
+tests/
+docs/
+.claude/
+*.py
+render_video.mjs
+README.md
+package.json
+.env*
+.DS_Store

@@ -1,11 +1,10 @@
 {
   "cleanUrls": true,
+  "redirects": [{ "source": "/video_formula_builder", "destination": "/", "permanent": false }],
   "headers": [
     {
       "source": "/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
-      ]
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
     }
   ]
 }

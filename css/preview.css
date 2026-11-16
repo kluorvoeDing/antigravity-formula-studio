@@ -175,6 +175,83 @@
 @keyframes pv-cursor { 0%, 15% { translate: 40px 30px; } 35%, 70% { translate: 0 0; } 90%, 100% { translate: 40px 30px; } }
 @keyframes pv-marquee { to { translate: calc(-50% - 7px) 0; } }
 @media (prefers-reduced-motion: reduce) { .pv-motion * { animation: none !important; } }
+/* 動態：效果類的個別場景（只用動畫長屬性，保留預設的暫停與無限循環） */
+.pv-m-window { flex: 1; min-height: 0; overflow: hidden; }
+.pv-m-feed { display: flex; flex-direction: column; gap: 6px; }
+.pv-m-feed .pv-m-card { flex: none; height: 40px; }
+.pv-m-split { flex: 1; min-height: 0; display: flex; gap: 8px; }
+.pv-m-center { flex: 1; display: flex; align-items: center; justify-content: center; }
+.pv-m-pill { display: flex; align-items: center; justify-content: center; width: 84px; height: 24px; border-radius: 12px; background: #161616; }
+.pv-m-parallax .pv-m-scene { position: relative; flex: 1; overflow: hidden; border: 1.5px solid var(--c); border-radius: 4px; }
+.pv-m-back { position: absolute; inset: 8% 6% -20%; display: flex; gap: 10%; animation-name: pv-par-back; animation-timing-function: ease-in-out; animation-duration: 3s; }
+.pv-m-back i { flex: 1; height: 80%; background: var(--c); opacity: 0.22; border-radius: 4px; }
+.pv-m-back i:nth-child(2) { margin-top: 12%; }
+.pv-m-front { position: absolute; left: 14%; right: 14%; top: 48%; height: 46%; display: flex; gap: 8px; animation-name: pv-par-front; animation-timing-function: ease-in-out; animation-duration: 3s; }
+.pv-m-pin { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 8px; border: 1.5px solid var(--c); border-radius: 4px; }
+.pv-m-sticky-scroll .pv-m-feed { animation-name: pv-feed; animation-timing-function: linear; animation-duration: 3.2s; }
+.pv-m-progress { position: absolute; left: 0; right: 0; top: 0; height: 4px; background: #eef0f3; }
+.pv-m-fill { height: 100%; background: #161616; transform-origin: left; animation-name: pv-progress; animation-timing-function: linear; animation-duration: 3.2s; }
+.pv-m-scroll-progress .pv-m-feed { animation-name: pv-feed; animation-timing-function: linear; animation-duration: 3.2s; }
+.pv-m-row { animation-name: pv-stagger; animation-timing-function: ease-out; animation-fill-mode: backwards; animation-delay: calc(var(--i) * 0.14s); }
+.pv-m-nav { height: 9px; background: #eef0f3; border: 1.5px solid var(--c); border-radius: 3px; }
+.pv-m-row.pv-m-cards { height: 40%; }
+.pv-m-mask { overflow: hidden; padding-block: 1px; }
+.pv-m-word { width: var(--w); height: 8px; background: var(--c); border-radius: 2px; animation-name: pv-rise; animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); animation-fill-mode: backwards; animation-delay: calc(var(--i) * 0.16s); }
+.pv-m-stage { position: relative; flex: 1; }
+.pv-m-page-a { position: absolute; inset: 0; display: flex; gap: 8px; align-items: flex-start; animation-name: pv-vt-out; animation-timing-function: ease-in-out; animation-duration: 3s; }
+.pv-m-page-a .pv-m-card { height: 55%; }
+.pv-m-page-b { position: absolute; left: 0; right: 0; top: 64%; display: flex; flex-direction: column; gap: 6px; animation-name: pv-vt-in; animation-timing-function: ease-in-out; animation-duration: 3s; }
+.pv-m-morph { position: absolute; left: 0; top: 0; width: calc((100% - 16px) / 3); height: 55%; background: var(--c); opacity: 0.6; border-radius: 4px; animation-name: pv-vt-morph; animation-timing-function: ease-in-out; animation-duration: 3s; }
+.pv-m-magnetic-button .pv-m-pill { animation-name: pv-magnet; animation-timing-function: ease-out; }
+.pv-m-magnetic-button .pv-m-cursor { left: 54%; top: 58%; animation-name: pv-magnet-cursor; animation-timing-function: ease-in-out; }
+.pv-m-persp { flex: 1; display: flex; align-items: center; justify-content: center; perspective: 260px; }
+.pv-m-tilt { flex: none; width: 56%; height: 78%; animation-name: pv-tilt; animation-timing-function: ease-out; animation-duration: 3s; }
+.pv-m-tilt-3d .pv-m-cursor { left: 50%; top: 50%; animation-name: pv-tilt-cursor; animation-timing-function: ease-in-out; animation-duration: 3s; }
+.pv-m-ring { position: absolute; left: calc(50% - 11px); top: calc(50% - 11px); width: 22px; height: 22px; border: 1.5px solid #161616; border-radius: 50%; animation-name: pv-follow; animation-timing-function: ease-in-out; animation-delay: 0.18s; animation-duration: 3s; }
+.pv-m-cursor-follower .pv-m-cursor { left: 50%; top: 50%; animation-name: pv-follow; animation-timing-function: ease-in-out; animation-duration: 3s; }
+.pv-m-stats { display: flex; gap: 8px; height: 46%; }
+.pv-m-stat { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 8px; border: 1.5px solid var(--c); border-radius: 4px; }
+.pv-m-num { width: 88%; height: 9px; background: #161616; border-radius: 2px; transform-origin: left; animation-name: pv-count; animation-timing-function: steps(9, end); animation-fill-mode: backwards; animation-delay: calc(var(--i) * 0.1s); }
+.pv-m-button-press .pv-m-pill { animation-name: pv-press; animation-timing-function: ease-out; }
+.pv-m-button-press .pv-m-cursor { left: 52%; top: 60%; animation-name: pv-press-cursor; animation-timing-function: ease-in-out; }
+.pv-m-links { flex: 0 0 26%; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+.pv-m-link { width: 80%; animation-name: pv-link; animation-duration: 3.2s; }
+.pv-m-smooth-scroll .pv-m-feed { animation-name: pv-glide; animation-timing-function: ease-in-out; animation-duration: 3.2s; }
+.pv-m-smooth-scroll .pv-m-cursor { left: 20%; top: 52%; animation-name: pv-link-cursor; animation-timing-function: ease-in-out; animation-duration: 3.2s; }
+.pv-m-shots { display: flex; gap: 8px; height: 72%; }
+.pv-m-shot { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.pv-m-photo { position: relative; flex: 1; overflow: hidden; border: 1.5px solid var(--c); border-radius: 4px; }
+.pv-m-pic { position: absolute; inset: 0; background: radial-gradient(circle at 30% 34%, #eef0f3 0 11%, transparent 12%), linear-gradient(150deg, transparent 56%, #eef0f3 57%), var(--c); opacity: 0.7; }
+.pv-m-image-hover-zoom .pv-m-shot:nth-child(2) .pv-m-pic { animation-name: pv-zoom; animation-timing-function: ease-out; }
+.pv-m-draw { position: relative; width: 58%; height: 62%; margin-inline: auto; }
+.pv-m-side { position: absolute; background: #161616; animation-timing-function: ease-in-out; animation-fill-mode: backwards; animation-duration: 3s; animation-delay: calc(var(--i) * 0.3s); }
+.pv-m-top { left: 0; top: 0; width: 100%; height: 2px; transform-origin: left; animation-name: pv-draw-x; }
+.pv-m-right { right: 0; top: 0; width: 2px; height: 100%; transform-origin: top; animation-name: pv-draw-y; }
+.pv-m-bottom { right: 0; bottom: 0; width: 100%; height: 2px; transform-origin: right; animation-name: pv-draw-x; }
+.pv-m-left { left: 0; bottom: 0; width: 2px; height: 100%; transform-origin: bottom; animation-name: pv-draw-y; }
+@keyframes pv-par-back { 0%, 15% { translate: 0 0; } 55%, 72% { translate: 0 -6px; } 92%, 100% { translate: 0 0; } }
+@keyframes pv-par-front { 0%, 15% { translate: 0 0; } 55%, 72% { translate: 0 -30px; } 92%, 100% { translate: 0 0; } }
+@keyframes pv-feed { 0%, 12% { translate: 0 0; } 84%, 100% { translate: 0 -120px; } }
+@keyframes pv-progress { 0%, 12% { scale: 0 1; } 84%, 100% { scale: 1 1; } }
+@keyframes pv-stagger { 0%, 6% { opacity: 0; translate: 0 8px; } 22%, 84% { opacity: 1; translate: 0 0; } 94%, 100% { opacity: 0; translate: 0 0; } }
+@keyframes pv-rise { 0%, 10% { translate: 0 130%; } 30%, 84% { translate: 0 0; } 94%, 100% { translate: 0 130%; } }
+@keyframes pv-vt-out { 0%, 20% { opacity: 1; } 38%, 72% { opacity: 0; } 90%, 100% { opacity: 1; } }
+@keyframes pv-vt-in { 0%, 32% { opacity: 0; translate: 0 6px; } 50%, 72% { opacity: 1; translate: 0 0; } 86%, 100% { opacity: 0; translate: 0 6px; } }
+@keyframes pv-vt-morph { 0%, 20% { width: calc((100% - 16px) / 3); } 46%, 72% { width: 100%; } 90%, 100% { width: calc((100% - 16px) / 3); } }
+@keyframes pv-magnet { 0%, 15% { translate: 0 0; } 40%, 66% { translate: 7px 4px; } 88%, 100% { translate: 0 0; } }
+@keyframes pv-magnet-cursor { 0%, 15% { translate: 56px 30px; } 40%, 66% { translate: 4px 2px; } 88%, 100% { translate: 56px 30px; } }
+@keyframes pv-tilt { 0%, 12%, 90%, 100% { transform: rotateX(0deg) rotateY(0deg); } 34%, 44% { transform: rotateX(10deg) rotateY(-14deg); } 62%, 72% { transform: rotateX(-10deg) rotateY(14deg); } }
+@keyframes pv-tilt-cursor { 0%, 12% { translate: 70px 44px; } 34%, 44% { translate: -32px -20px; } 62%, 72% { translate: 30px 18px; } 90%, 100% { translate: 70px 44px; } }
+@keyframes pv-follow { 0%, 10% { translate: -64px 12px; } 36% { translate: 18px -26px; } 62% { translate: 52px 18px; } 88%, 100% { translate: -64px 12px; } }
+@keyframes pv-count { 0%, 10% { scale: 0.08 1; } 50%, 100% { scale: 1 1; } }
+@keyframes pv-press { 0%, 30% { scale: 1; } 36%, 44% { scale: 0.92; } 54%, 100% { scale: 1; } }
+@keyframes pv-press-cursor { 0%, 8% { translate: 40px 26px; } 26%, 62% { translate: 0 0; } 86%, 100% { translate: 40px 26px; } }
+@keyframes pv-link { 0%, 24% { background: var(--c); } 30%, 84% { background: #161616; } 92%, 100% { background: var(--c); } }
+@keyframes pv-glide { 0%, 30% { translate: 0 0; } 60%, 82% { translate: 0 -138px; } 96%, 100% { translate: 0 0; } }
+@keyframes pv-link-cursor { 0%, 6% { translate: 34px 26px; } 22%, 36% { translate: 0 0; } 60%, 100% { translate: 34px 26px; } }
+@keyframes pv-zoom { 0%, 30% { scale: 1; } 46%, 70% { scale: 1.14; } 88%, 100% { scale: 1; } }
+@keyframes pv-draw-x { 0%, 6% { scale: 0 1; } 20%, 84% { scale: 1 1; } 94%, 100% { scale: 0 1; } }
+@keyframes pv-draw-y { 0%, 6% { scale: 1 0; } 20%, 84% { scale: 1 1; } 94%, 100% { scale: 1 0; } }
 
 /* 檔案樹、文案、對照 */
 .pv-tree { justify-content: center; gap: 1px; padding: 7% 9%; background: #17191c; color: #d7dbe0; font: 11.5px/1.55 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }

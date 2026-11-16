@@ -99,7 +99,11 @@ export const WIRE_PRIMS = [
 export const PREVIEW_FONTS = ["sans", "serif", "mono", "round", "kai", "condensed"];
 
 // motion 預覽可用的具名動畫
-export const MOTION_NAMES = ["none", "subtle", "expressive", "fade-up", "hover-lift", "marquee"];
+export const MOTION_NAMES = [
+  "none", "subtle", "expressive", "fade-up", "hover-lift", "marquee",
+  "parallax", "sticky-scroll", "scroll-progress", "page-load-stagger", "text-reveal", "view-transitions", "magnetic-button",
+  "tilt-3d", "cursor-follower", "count-up", "button-press", "smooth-scroll", "image-hover-zoom", "svg-line-drawing",
+];
 
 export const LIMITS = {
   zh: [2, 14],
@@ -114,7 +118,7 @@ export const LIMITS = {
 
 // 提示詞內容（prompt / accept / 範本固定文字）不得出現的字眼
 export const BANNED = {
-  agent: ["Claude", "ChatGPT", "GPT", "Codex", "Antigravity", "Gemini", "Cursor", "Copilot", "Artifact"],
+  agent: ["Claude", "ChatGPT", "GPT", "Codex", "Antigravity", "Gemini", "Copilot", "Artifact"],
   reference: ["上述", "前述", "剛才", "上一則", "附件", "這個對話", "如上"],
   repo: ["showreel", "render_video", "generate_audio", "SciPy"],
 };

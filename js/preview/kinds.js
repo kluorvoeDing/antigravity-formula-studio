@@ -146,3 +146,23 @@ export function renderVersus(s) {
     h("div", { class: "pv-v-side pv-v-do" }, h("b", {}, "改成"), h("span", {}, s.do)),
   );
 }
+
+/** 畫面比例＋景別＋主體位置。人物以頭與肩的剪影表示，物件以方塊表示。 */
+export function renderFrame(s) {
+  const subject =
+    s.shot === "object"
+      ? h("i", { class: "pv-object" })
+      : s.shot === "objects"
+        ? h("span", { class: "pv-objects" }, h("i", { class: "pv-object" }), h("i", { class: "pv-object" }), h("i", { class: "pv-object" }))
+        : h("i", { class: "pv-figure" });
+  return h(
+    "div",
+    { class: ["pv", "pv-frame-wrap"], "aria-hidden": "true" },
+    h(
+      "div",
+      { class: ["pv-frame", ["9:16", "4:5", "2:3", "1:1", "3:2"].includes(s.ratio) && "pv-port", `pv-shot-${s.shot}`, `pv-place-${s.place ?? "center"}`, s.grid && "pv-grid", s.text && s.text !== "none" && `pv-text-${s.text}`], style: { "--ratio": s.ratio.replace(":", " / ") } },
+      s.text && s.text !== "none" && h("span", { class: "pv-textzone" }, bar("70%"), bar("46%")),
+      subject,
+    ),
+  );
+}

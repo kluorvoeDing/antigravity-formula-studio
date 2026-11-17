@@ -80,8 +80,17 @@ export function restore(saved, domain, builtinStyles, legacy = null) {
   const styles = [...builtinStyles, ...custom];
   if (recipe.styleId && !styles.some((s) => s.id === recipe.styleId)) recipe.styleId = null;
 
-  const stepId = domain.steps.some((s) => s.id === src.stepId) ? src.stepId : domain.steps[0].id;
-  return { domainId: domain.id, stepId, recipe, styles, manualText: null };
+  // 其他主題的配方原樣保留（切到該主題時才清理），存檔時再合併回去，避免切換主題時遺失。
+  const otherRecipes = {};
+  if (src.recipes && typeof src.recipes === "object") {
+    for (const [id, value] of Object.entries(src.recipes).slice(0, 10)) {
+      if (id !== domain.id && /^[a-z-]{1,20}$/.test(id) && value && typeof value === "object") otherRecipes[id] = value;
+    }
+  }
+
+  const sameDomain = !src.domainId || src.domainId === domain.id;
+  const stepId = sameDomain && domain.steps.some((s) => s.id === src.stepId) ? src.stepId : domain.steps[0].id;
+  return { domainId: domain.id, stepId, recipe, styles, otherRecipes, manualText: null };
 }
 
 /** 要寫進 localStorage 的內容：只存使用者自訂的風格。 */
@@ -91,7 +100,7 @@ export function snapshot(state, builtinStyles) {
     v: 4,
     domainId: state.domainId,
     stepId: state.stepId,
-    recipes: { [state.domainId]: state.recipe },
+    recipes: { ...(state.otherRecipes ?? {}), [state.domainId]: state.recipe },
     styles: state.styles.filter((s) => !builtin.has(s.id)),
   };
 }

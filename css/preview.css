@@ -272,3 +272,29 @@
 .pv-v-side b { font-size: 11px; font-weight: 800; }
 .pv-v-dont { background: #f1f2f4; color: #777; } .pv-v-dont span { text-decoration: line-through; text-decoration-color: #d1242f; }
 .pv-v-dont b { color: #d1242f; } .pv-v-do b { color: #1a7f37; }
+
+/* frame：畫面比例、景別、主體位置 */
+.pv-frame-wrap { aspect-ratio: 16 / 10; align-items: center; justify-content: center; padding: 5%; }
+.pv-frame { position: relative; aspect-ratio: var(--ratio); width: 100%; height: auto; overflow: hidden; background: var(--pv-fill); border: 1.5px solid var(--pv-ink); border-radius: 3px; --x: 50%; }
+.pv-frame.pv-port { height: 100%; width: auto; }
+.pv-place-left { --x: 33.3%; } .pv-place-right { --x: 66.7%; }
+.pv-grid { background-image: linear-gradient(to right, transparent calc(33.3% - 0.5px), var(--pv-ink) calc(33.3% - 0.5px), var(--pv-ink) calc(33.3% + 0.5px), transparent calc(33.3% + 0.5px), transparent calc(66.7% - 0.5px), var(--pv-ink) calc(66.7% - 0.5px), var(--pv-ink) calc(66.7% + 0.5px), transparent calc(66.7% + 0.5px)), linear-gradient(to bottom, transparent calc(33.3% - 0.5px), var(--pv-ink) calc(33.3% - 0.5px), var(--pv-ink) calc(33.3% + 0.5px), transparent calc(33.3% + 0.5px), transparent calc(66.7% - 0.5px), var(--pv-ink) calc(66.7% - 0.5px), var(--pv-ink) calc(66.7% + 0.5px), transparent calc(66.7% + 0.5px)); }
+.pv-figure { position: absolute; left: var(--x); top: var(--top); height: var(--h); aspect-ratio: 1 / 2.4; translate: -50% 0; }
+.pv-figure::before { content: ""; position: absolute; left: 22%; top: 0; width: 56%; aspect-ratio: 1; border-radius: 50%; background: var(--pv-hl); }
+.pv-figure::after { content: ""; position: absolute; left: 0; top: 25%; width: 100%; height: 75%; border-radius: 40% 40% 6% 6%; background: var(--pv-hl); opacity: 0.75; }
+.pv-shot-extreme-wide { --h: 18%; --top: 62%; }
+.pv-shot-wide { --h: 42%; --top: 46%; }
+.pv-shot-full { --h: 88%; --top: 8%; }
+.pv-shot-medium { --h: 170%; --top: 14%; }
+.pv-shot-close { --h: 300%; --top: 10%; }
+.pv-shot-extreme-close { --h: 620%; --top: -28%; }
+.pv-place-low .pv-figure { --top: 58%; } .pv-place-high .pv-figure { --top: 4%; }
+.pv-object { position: absolute; left: var(--x); top: 50%; width: 30%; aspect-ratio: 1; translate: -50% -50%; border-radius: 6px; background: var(--pv-hl); opacity: 0.85; }
+.pv-objects { position: absolute; inset: 0; }
+.pv-objects .pv-object { width: 18%; }
+.pv-objects .pv-object:nth-child(1) { left: 28%; top: 38%; } .pv-objects .pv-object:nth-child(2) { left: 56%; top: 30%; } .pv-objects .pv-object:nth-child(3) { left: 66%; top: 64%; }
+.pv-textzone { position: absolute; display: flex; flex-direction: column; gap: 4px; padding: 6%; --c: var(--pv-ink); z-index: 1; }
+.pv-text-top .pv-textzone { inset: 0 0 auto 0; align-items: center; }
+.pv-text-bottom .pv-textzone { inset: auto 0 0 0; align-items: center; }
+.pv-text-left .pv-textzone { inset: 0 auto 0 0; width: 45%; justify-content: center; }
+.pv-text-left { --x: 70%; }

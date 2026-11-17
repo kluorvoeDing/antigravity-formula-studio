@@ -5,9 +5,25 @@ function fill(text, brief) {
   return text.replace(/\{(\w+)\}/g, (_, key) => (brief[key] ?? "").trim());
 }
 
-function moduleLine(module, prefix) {
+function moduleLine(module, prefix, en) {
+  if (en) return module.promptEn;
   const name = `${module.zh}（${module.en}）`;
   return prefix ? `${prefix}：${name}——${module.prompt}` : `${name}：${module.prompt}`;
+}
+
+/** 合併行與鏡頭段落用的短句：英文範本用 promptEn，否則用 prompt。 */
+const phrase = (module, en) => (en ? module.promptEn : module.prompt);
+
+/** 範本零件引用到的類別。 */
+export function partCategories(part) {
+  if (part.kind === "modules") return [part.category];
+  if (part.kind === "merged" || part.kind === "shots") return part.categories ?? [];
+  return [];
+}
+
+function picksOf(ctx, categories) {
+  const overridden = new Set(ctx.style?.overrides ?? []);
+  return categories.filter((id) => !overridden.has(id)).flatMap((id) => orderedPicks(ctx.ix, ctx.recipe, id));
 }
 
 function styleLines(style) {
@@ -38,6 +54,7 @@ function renderPart(part, ctx) {
   const { ix, recipe, style, template } = ctx;
   const brief = recipe.brief;
   const overridden = new Set(style?.overrides ?? []);
+  const en = template.lang === "en";
 
   switch (part.kind) {
     case "text": {
@@ -61,12 +78,37 @@ function renderPart(part, ctx) {
       if (overridden.has(part.category)) return [];
       const entries = orderedPicks(ix, recipe, part.category);
       const format = part.format ?? "bullets";
-      const lines = entries.map(({ module }) => ({ text: moduleLine(module, part.prefix), format, moduleId: module.id }));
+      const lines = entries.map(({ module }) => ({ text: moduleLine(module, part.prefix, en), format, moduleId: module.id }));
       if (!entries.length && part.missing) {
         const category = ix.categories.get(part.category);
         if (category?.groups.some((g) => g.min > 0)) lines.push({ text: part.missing, format: "bullets" });
       }
       return lines;
+    }
+    case "merged": {
+      // 同一個標籤底下的模組合成一行，例如「構圖：A；B」。可在前面放簡述欄位的內容。
+      const entries = picksOf(ctx, part.categories);
+      const lead = part.field ? (brief[part.field] ?? "").trim() : "";
+      const pieces = [lead && (part.quote ? `「${lead}」` : lead), ...entries.map(({ module }) => phrase(module, en))].filter(Boolean);
+      if (!pieces.length) return part.missing ? [{ text: `${part.label}${en ? ": " : "："}${part.missing}`, format: part.format ?? "plain" }] : [];
+      const text = `${part.label}${en ? ": " : "："}${pieces.join(en ? "; " : "；")}`;
+      return [{ text, format: part.format ?? "plain", moduleIds: entries.map(({ module }) => module.id) }];
+    }
+    case "shots": {
+      // 每個鏡頭一段、可單獨貼上：鏡頭描述＋所有共用模組的短句。
+      const raw = (brief[part.field] ?? "").split(/\n+/).map((s) => s.trim()).filter(Boolean).slice(0, part.max ?? 8);
+      const fallback = part.fallback ? (brief[part.fallback] ?? "").trim() : "";
+      const shots = raw.length ? raw : fallback ? [fallback] : [part.placeholder];
+      const entries = picksOf(ctx, part.categories);
+      const shared = entries.map(({ module }) => phrase(module, en)).join(" ");
+      const ids = entries.map(({ module }) => module.id);
+      return shots.flatMap((shot, i) => {
+        const body = /[.!?。！？]$/.test(shot) ? shot : `${shot}.`;
+        return [
+          { text: `${part.label} ${i + 1}`, format: "heading" },
+          { text: shared ? `${body} ${shared}` : body, format: "plain", moduleIds: ids },
+        ];
+      });
     }
     case "style":
       return styleLines(style).map((text) => ({ text, format: "bullets" }));
@@ -76,8 +118,7 @@ function renderPart(part, ctx) {
       const lines = [];
       for (const section of template.sections) {
         for (const p of section.parts) {
-          if (p.kind !== "modules" || overridden.has(p.category)) continue;
-          for (const { module } of orderedPicks(ix, recipe, p.category)) {
+          for (const { module } of picksOf(ctx, partCategories(p))) {
             if (module.accept) lines.push({ text: module.accept, format: "checklist", moduleId: module.id });
           }
         }
@@ -123,7 +164,7 @@ function formatLines(lines) {
 export function assemble(domain, recipe, style = null) {
   const ix = indexDomain(domain);
   const template = domain.template;
-  const ctx = { ix, recipe, style, template, emitted: new Set() };
+  const ctx = { ix, recipe, style: domain.personalStyle ? style : null, template, emitted: new Set() };
   const blocks = [];
   const used = new Set();
 
@@ -132,6 +173,7 @@ export function assemble(domain, recipe, style = null) {
     const seen = new Set();
     for (const part of section.parts) {
       const rendered = renderPart(part, ctx).filter((line) => {
+        if (line.format === "heading") return true;
         if (seen.has(line.text)) return false;
         seen.add(line.text);
         return true;
@@ -142,11 +184,13 @@ export function assemble(domain, recipe, style = null) {
     }
     if (!lines.length) continue;
     ctx.emitted.add(section.id);
-    for (const line of lines) if (line.moduleId) used.add(line.moduleId);
+    for (const line of lines) for (const id of line.moduleIds ?? (line.moduleId ? [line.moduleId] : [])) used.add(id);
     blocks.push({
       sectionId: section.id,
       title: section.title,
-      lines: formatLines(lines).map(({ text, moduleId }) => (moduleId ? { text, moduleId } : { text })),
+      lines: formatLines(lines).map(({ text, moduleId, moduleIds }) =>
+        moduleIds?.length ? { text, moduleIds } : moduleId ? { text, moduleId } : { text },
+      ),
     });
   }
 

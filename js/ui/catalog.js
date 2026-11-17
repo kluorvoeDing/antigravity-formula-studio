@@ -163,6 +163,7 @@ export function mountCatalog(el, store, domain, actions, { highlight, editStyle,
   }
 
   function renderStart(state) {
+    const brief = domain.brief;
     const unclear = (value, label, hint) => {
       const input = h("input", { type: "radio", name: "unclear", value, on: { change: () => actions.setUnclear(value) } });
       input.checked = state.recipe.onUnclear === value;
@@ -204,17 +205,12 @@ export function mountCatalog(el, store, domain, actions, { highlight, editStyle,
       h(
         "section",
         { class: "category" },
-        h("header", { class: "category-head" }, h("h2", {}, "描述你的網站"), h("p", {}, "全部選填。寫得越具體，AI 產出的文案與內容越貼近你要的。")),
+        h("header", { class: "category-head" }, h("h2", {}, brief.title), h("p", {}, brief.intro)),
         h(
           "div",
           { class: "form" },
-          field(state, "name", "網站或產品名稱", "", { placeholder: "例如：Tidepool" }),
-          field(state, "oneLiner", "一句話定位", "", { placeholder: "例如：給小型團隊的排班工具，三分鐘排好一週班表" }),
-          field(state, "audience", "目標受眾", "誰會來看、他們在意什麼。", { placeholder: "例如：10 到 50 人餐飲店的店長" }),
-          field(state, "goal", "訪客該完成的事", "看完之後你希望他們做什麼。", { placeholder: "例如：註冊 14 天免費試用" }),
-          field(state, "content", "可使用的內容素材", "手邊已有的文字、數字、功能清單、客戶名稱，直接貼上來。", { multiline: true, rows: 5 }),
-          field(state, "extra", "補充說明", "其他任何想交代的事。會原樣放進提示詞的「補充說明」。", { multiline: true, rows: 3 }),
-          field(state, "lang", "介面與文案語言", "", {}),
+          brief.fields.map((f) => field(state, f.key, f.label, f.hint ?? "", { multiline: f.multiline, rows: f.rows, placeholder: f.placeholder ?? "" })),
+          brief.unclear &&
           h(
             "fieldset",
             { class: "field is-wide" },
@@ -242,7 +238,7 @@ export function mountCatalog(el, store, domain, actions, { highlight, editStyle,
         h("h1", {}, multi ? step.zh : lead.zh, !multi && h("span", { class: "en", lang: "en" }, lead.en)),
         h("p", { class: "intro" }, multi ? step.hint : lead.intro),
       ),
-      step.id === "style" && renderStylePanel(state),
+      step.id === "style" && domain.personalStyle && renderStylePanel(state),
       categories.map((category, i) => renderCategory(state, category, stepIndex, i, multi)),
       stepNav(state),
     ];

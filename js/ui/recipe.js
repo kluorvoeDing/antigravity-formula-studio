@@ -147,17 +147,18 @@ export function mountRecipe(el, store, domain, actions, toast, { openModule, bui
               { class: "prompt-block" },
               h("p", { class: "prompt-title" }, `${i === 0 ? "#" : "##"} ${block.title}`),
               block.lines.map((line) => {
-                const linked = line.moduleId && openModule;
+                const ids = line.moduleIds ?? (line.moduleId ? [line.moduleId] : []);
+                const linked = ids.length > 0 && openModule;
                 const node = h(
                   "p",
                   {
                     class: ["prompt-line", line.text.startsWith("### ") && "is-sub", linked && "is-linked"],
                     title: linked ? "點一下前往這個模組" : null,
-                    on: linked ? { click: () => window.getSelection()?.isCollapsed !== false && openModule(line.moduleId) } : null,
+                    on: linked ? { click: () => window.getSelection()?.isCollapsed !== false && openModule(ids[0]) } : null,
                   },
                   line.text,
                 );
-                if (line.moduleId) lines.push({ id: line.moduleId, node });
+                for (const id of ids) lines.push({ id, node });
                 return node;
               }),
             ),

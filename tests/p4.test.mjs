@@ -95,3 +95,21 @@ test("匯入：種類不對或沒有此主題的配方時拒絕；惡意內容�
   assert.equal(out.dropped, 1);
   assert.deepEqual(out.styles.map((s) => s.name), ["內建", "新的"]);
 });
+
+test("切換主題：存檔保留其他主題的配方，步驟只在同主題時還原", async () => {
+  const { restore, snapshot } = await import("../js/persist.js");
+  const other = { ...domain, id: "u", steps: [{ id: "begin", zh: "開始", kind: "start" }, ...domain.steps.slice(1)] };
+  const first = restore(null, domain, builtin);
+  first.recipe = pick(first.recipe, "t.kind.b");
+  first.stepId = "parts";
+  const saved1 = JSON.parse(JSON.stringify(snapshot(first, builtin)));
+  // 切到另一個主題：步驟回到起點，原主題配方保留在 otherRecipes
+  const second = restore(saved1, other, builtin);
+  assert.equal(second.stepId, "begin");
+  assert.deepEqual(second.otherRecipes.t.picks.kind, ["t.kind.b"]);
+  const saved2 = JSON.parse(JSON.stringify(snapshot(second, builtin)));
+  // 切回來：原主題配方完整
+  const third = restore(saved2, domain, builtin);
+  assert.deepEqual(third.recipe.picks.kind, ["t.kind.b"]);
+  assert.ok(saved2.recipes.u);
+});

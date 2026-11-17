@@ -16,6 +16,7 @@ export function makeDomain() {
     id: "t",
     zh: "測試",
     en: "Test",
+    personalStyle: true,
     steps: [
       { id: "start", zh: "起點", kind: "start" },
       { id: "kind", zh: "類型", categories: ["kind"] },

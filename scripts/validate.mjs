@@ -3,10 +3,11 @@
 import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
-import { TAGS, CAPABILITIES, PREVIEW_KINDS, WIRE_PRIMS, PREVIEW_FONTS, MOTION_NAMES, LIMITS, BANNED, VAGUE } from "../data/schema.js";
+import { TAGS, CAPABILITIES, PREVIEW_KINDS, WIRE_PRIMS, PREVIEW_FONTS, MOTION_NAMES, FRAME, LIMITS, BANNED, VAGUE } from "../data/schema.js";
 import { FACETS } from "../data/facets.js";
 import { sanitize } from "../js/engine/select.js";
 import { check } from "../js/engine/check.js";
+import { partCategories } from "../js/engine/assemble.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const len = (s) => [...s].length;
@@ -115,6 +116,13 @@ function checkPreview(errors, where, preview) {
     case "motion":
       oneOf("name", MOTION_NAMES);
       break;
+    case "frame":
+      oneOf("ratio", FRAME.ratio);
+      oneOf("shot", FRAME.shot);
+      if (preview.place !== undefined) oneOf("place", FRAME.place);
+      if (preview.text !== undefined) oneOf("text", FRAME.text);
+      if (preview.grid !== undefined && typeof preview.grid !== "boolean") errors.push(`${where}：preview.grid 必須是 true 或 false`);
+      break;
     case "tree":
       if (!Array.isArray(preview.lines) || !preview.lines.length || preview.lines.length > 9) errors.push(`${where}：tree 需要 1–9 行`);
       else for (const l of preview.lines) if (typeof l !== "string" || len(l) > 40) errors.push(`${where}：tree 每行需為 40 字以內的字串`);
@@ -148,8 +156,13 @@ function checkModule(errors, module, category, domain, groupIds) {
   if (typeof module.id !== "string" || !ID_RE.test(module.id)) errors.push(`${where}：id 格式錯誤`);
   else if (!module.id.startsWith(prefix)) errors.push(`${where}：id 必須以 ${prefix} 開頭`);
 
-  for (const field of ["zh", "en", "what", "prompt"]) {
+  const english = domain.template?.lang === "en";
+  for (const field of ["zh", "en", "what", english ? "promptEn" : "prompt"]) {
     if (typeof module[field] !== "string" || !module[field].trim()) errors.push(`${where}：缺少 ${field}`);
+  }
+  if (typeof module.promptEn === "string") {
+    checkLen(errors, where, "promptEn", module.promptEn, domain.limits?.promptEn ?? [20, 320]);
+    if (/[\u3000-\u9fff\uff00-\uffef]/.test(module.promptEn)) errors.push(`${where}：promptEn 只能用英文`);
   }
   if (typeof module.zh === "string") checkLen(errors, where, "zh", module.zh, LIMITS.zh);
   if (typeof module.en === "string") checkLen(errors, where, "en", module.en, LIMITS.en);
@@ -157,7 +170,7 @@ function checkModule(errors, module, category, domain, groupIds) {
     checkLen(errors, where, "what", module.what, LIMITS.what);
     for (const word of VAGUE) if (module.what.includes(word)) errors.push(`${where}：what 含空泛形容詞「${word}」`);
   }
-  if (typeof module.prompt === "string") checkLen(errors, where, "prompt", module.prompt, LIMITS.prompt);
+  if (typeof module.prompt === "string") checkLen(errors, where, "prompt", module.prompt, domain.limits?.prompt ?? LIMITS.prompt);
   if (module.accept !== undefined) {
     if (typeof module.accept !== "string") errors.push(`${where}：accept 必須是字串`);
     else checkLen(errors, where, "accept", module.accept, LIMITS.accept);
@@ -194,7 +207,7 @@ function checkModule(errors, module, category, domain, groupIds) {
       }
   }
 
-  for (const field of ["prompt", "accept"]) {
+  for (const field of ["prompt", "promptEn", "accept"]) {
     if (typeof module[field] !== "string") continue;
     for (const hit of bannedIn(module[field])) errors.push(`${where}：${field} 含禁用字眼 ${hit}`);
   }
@@ -280,10 +293,10 @@ export function validateDomain(domain, { allowEmpty = false } = {}) {
   const template = domain.template;
   for (const section of template.sections) {
     for (const part of section.parts) {
-      if (part.kind === "modules" && !categoryIds.has(part.category)) errors.push(`範本 ${section.id}：類別 ${part.category} 不存在`);
+      for (const id of partCategories(part)) if (!categoryIds.has(id)) errors.push(`範本 ${section.id}：類別 ${id} 不存在`);
     }
   }
-  const usedInTemplate = new Set(template.sections.flatMap((s) => s.parts.filter((p) => p.kind === "modules").map((p) => p.category)));
+  const usedInTemplate = new Set(template.sections.flatMap((s) => s.parts.flatMap(partCategories)));
   for (const id of categoryIds) if (!usedInTemplate.has(id)) errors.push(`類別 ${id} 沒有出現在範本中`);
   const templateText = [];
   const collect = (value) => {

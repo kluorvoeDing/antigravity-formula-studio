@@ -1,6 +1,6 @@
 // 依規格的 kind 分派到對應的渲染器。沒有預覽或不認得的規格回傳 null。
 import { renderWire } from "./wire.js";
-import { renderSpecimen, renderType, renderPalette, renderShape, renderMotion, renderTree, renderCopy, renderVersus } from "./kinds.js";
+import { renderSpecimen, renderType, renderPalette, renderShape, renderMotion, renderTree, renderCopy, renderVersus, renderFrame } from "./kinds.js";
 
 const RENDERERS = {
   wire: renderWire,
@@ -12,6 +12,7 @@ const RENDERERS = {
   tree: renderTree,
   copy: renderCopy,
   versus: renderVersus,
+  frame: renderFrame,
 };
 
 export function renderPreview(spec) {

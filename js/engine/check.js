@@ -12,7 +12,7 @@ export function check(domain, recipe, style = null) {
   const issues = [];
   const picked = allPicked(recipe).filter((id) => ix.modules.has(id));
   const pickedSet = new Set(picked);
-  const overridden = new Set(style?.overrides ?? []);
+  const overridden = new Set(domain.personalStyle ? style?.overrides ?? [] : []);
   const name = (id) => ix.modules.get(id)?.module.zh ?? id;
 
   for (const category of domain.categories) {

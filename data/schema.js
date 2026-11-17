@@ -84,9 +84,19 @@ export const TAGS = [
   "文字", "圖片", "影片", "插畫", "3D", "圖示", "背景",
   "響應式", "無障礙", "效能", "SEO", "單檔", "框架", "樣式", "部署",
   "中文", "入門", "進階", "版面", "回饋", "輸入", "浮層", "排序篩選",
+  // 影片、圖片與 Flow
+  "構圖", "鏡頭", "運鏡", "光線", "材質", "攝影", "節奏", "聲音", "字幕", "後製", "敘事結構", "規格", "一致性",
 ];
 
-export const PREVIEW_KINDS = ["wire", "specimen", "type", "palette", "shape", "motion", "tree", "copy", "versus", "custom"];
+export const PREVIEW_KINDS = ["wire", "specimen", "type", "palette", "shape", "motion", "tree", "copy", "versus", "frame", "custom"];
+
+// frame 預覽：畫面比例、景別與主體位置（靜態），供圖片、影片與 Flow 使用
+export const FRAME = {
+  ratio: ["16:9", "9:16", "1:1", "4:5", "3:2", "2:3", "21:9"],
+  shot: ["extreme-wide", "wide", "full", "medium", "close", "extreme-close", "object", "objects"],
+  place: ["center", "left", "right", "low", "high"],
+  text: ["none", "top", "bottom", "left"],
+};
 
 // wire 預覽可用的線框基元
 export const WIRE_PRIMS = [

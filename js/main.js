@@ -11,11 +11,31 @@ import { mountCatalog } from "./ui/catalog.js";
 import { mountRecipe } from "./ui/recipe.js";
 import { createStyleEditor } from "./ui/style-editor.js";
 import { mountThemeToggle } from "./ui/theme.js";
+import { h, mount } from "./ui/dom.js";
 import { createDrawer } from "./ui/drawer.js";
 
-const domain = (await registry.web()).default;
+// 主題清單：registry 裡有的才能點，其餘標「即將加入」。
+const TOPICS = [
+  { id: "web", zh: "網頁生成" },
+  { id: "video", zh: "動態影片" },
+  { id: "image", zh: "圖片生成" },
+  { id: "flow", zh: "Flow 影片" },
+];
+const hashDomain = (hash) => String(hash).replace(/^#/, "").split("/")[0];
 
 const saved = readStorage(STORAGE_KEY);
+const domainId = registry[hashDomain(location.hash)] ? hashDomain(location.hash) : registry[saved?.domainId] ? saved.domainId : "web";
+const domain = (await registry[domainId]()).default;
+document.body.dataset.domain = domain.id;
+
+mount(
+  document.getElementById("domains"),
+  TOPICS.map((topic) =>
+    registry[topic.id]
+      ? h("a", { href: `#${topic.id}/start`, class: topic.id === domain.id && "is-current", "aria-current": topic.id === domain.id && "page" }, topic.zh)
+      : h("span", { class: "is-soon" }, topic.zh, h("small", {}, "即將加入")),
+  ),
+);
 const initial = { ...restore(saved, domain, builtinStyles, saved ? null : readStorage(LEGACY_KEY)), rev: 0, query: "" };
 const fromHash = parseHash(location.hash, domain);
 if (fromHash) initial.stepId = fromHash;
@@ -93,10 +113,20 @@ if (params.has("r")) {
   history.replaceState(null, "", `${location.pathname}${location.hash}`);
 }
 
-window.addEventListener("popstate", () => {
+// 換主題：先立即存檔，再重新載入（每個主題的資料與介面各自初始化）。
+function followHash() {
+  const target = hashDomain(location.hash);
+  if (target && target !== domain.id && registry[target]) {
+    clearTimeout(saveTimer);
+    writeStorage(STORAGE_KEY, snapshot(store.get(), builtinStyles));
+    location.reload();
+    return;
+  }
   const stepId = parseHash(location.hash, domain);
   if (stepId) actions.goStep(stepId);
-});
+}
+window.addEventListener("popstate", followHash);
+window.addEventListener("hashchange", followHash);
 
 // 快速鍵：/ 搜尋、Esc 離開搜尋、[ 與 ] 切換上一步與下一步（輸入文字時不作用）
 document.addEventListener("keydown", (event) => {

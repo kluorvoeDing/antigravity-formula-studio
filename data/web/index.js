@@ -20,6 +20,21 @@ export default {
   zh: "網頁生成",
   en: "Web",
   tagline: "組出一份完整的網站規格，貼給任何 AI 都能做出整站。",
+  personalStyle: true,
+  brief: {
+    title: "描述你的網站",
+    intro: "全部選填。寫得越具體，AI 產出的文案與內容越貼近你要的。",
+    unclear: true,
+    fields: [
+      { key: "name", label: "網站或產品名稱", placeholder: "例如：Tidepool" },
+      { key: "oneLiner", label: "一句話定位", placeholder: "例如：給小型團隊的排班工具，三分鐘排好一週班表" },
+      { key: "audience", label: "目標受眾", hint: "誰會來看、他們在意什麼。", placeholder: "例如：10 到 50 人餐飲店的店長" },
+      { key: "goal", label: "訪客該完成的事", hint: "看完之後你希望他們做什麼。", placeholder: "例如：註冊 14 天免費試用" },
+      { key: "content", label: "可使用的內容素材", hint: "手邊已有的文字、數字、功能清單、客戶名稱，直接貼上來。", multiline: true, rows: 5 },
+      { key: "extra", label: "補充說明", hint: "其他任何想交代的事。會原樣放進提示詞的「補充說明」。", multiline: true, rows: 3 },
+      { key: "lang", label: "介面與文案語言" },
+    ],
+  },
   steps: [
     { id: "start", zh: "起點", hint: "挑一個現成配方，或直接描述你的網站", kind: "start" },
     { id: "type", zh: "類型", hint: "這是什麼網站", categories: ["site-type"] },

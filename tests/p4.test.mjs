@@ -40,14 +40,16 @@ test("靈感骰子：保留簡述與風格，產出沒有待處理事項的配�
   }
 });
 
-test("靈感骰子：真實的網頁主題 200 次都沒有待處理事項", async () => {
-  const web = (await registry.web()).default;
-  const rng = seeded(42);
-  for (let i = 0; i < 200; i++) {
-    const recipe = randomRecipe(web, defaultRecipe(web), rng);
-    assert.deepEqual(check(web, recipe).map((x) => x.msg), [], `第 ${i} 次`);
-  }
-});
+for (const [id, load] of Object.entries(registry)) {
+  test(`靈感骰子：[${id}] 擲 200 次都沒有待處理事項`, async () => {
+    const real = (await load()).default;
+    const rng = seeded(42);
+    for (let i = 0; i < 200; i++) {
+      const recipe = randomRecipe(real, defaultRecipe(real), rng);
+      assert.deepEqual(check(real, recipe).map((x) => x.msg), [], `第 ${i} 次`);
+    }
+  });
+}
 
 test("分享連結：編碼後解碼得到相同的選取與順序", () => {
   const recipe = pick(emptyRecipe(domain), "t.kind.b", "t.part.p3", "t.part.p1");

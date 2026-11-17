@@ -104,7 +104,7 @@ export function createActions(store, domain, { toast, confirm, builtinStyles = [
     importJson(json) {
       const result = importData(json, domain, builtinStyles, store.get().styles);
       if (!result) {
-        toast("這不是配方圖鑑匯出的檔案，或檔案裡沒有網頁主題的配方");
+        toast(`這不是配方圖鑑匯出的檔案，或檔案裡沒有「${domain.zh}」的配方`);
         return false;
       }
       if (!confirm("匯入會取代目前的配方與專案簡述，自訂的個人風格會合併。要繼續嗎？")) return false;

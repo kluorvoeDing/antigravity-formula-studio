@@ -94,23 +94,40 @@ tests/                  fixture.mjs 是測試用小主題；golden/ 是三個配
 | P0 資料契約、引擎、測試 | 完成 |
 | P1 外觀方向 | 完成（使用者選 B 色票型錄） |
 | P2 三欄介面、個人風格、保存、種子模組 | 完成，已上線 |
-| P3 網頁資料庫擴充到 200+ | 資料已寫完（239 個）；**收尾待辦**見下 |
+| P3 網頁資料庫擴充到 200+ | 完成（240 個模組、12 個配方）；剩餘的小議題見下 |
 | P4 學習功能 | 搜尋、別名、相關名詞已完成；其餘未開始 |
 | P5 其他三個主題 | 未開始 |
 
 網頁主題目前的模組數請以 `node scripts/validate.mjs` 的輸出為準。完整的目標清單在 `docs/web-module-roster.md`，清單上標 ✅ 的已寫完。
 
-## P3 收尾待辦
+## P3 收尾（2026-11-17 完成）
 
-14 類共 239 個模組都已寫進資料檔，validate 零錯誤。新模組由子代理撰寫（Opus 與 Sonnet 混用），主代理只抽查了區塊、版型、禁令、元件各幾個，品質不錯，但**沒有逐一讀過**。接手後請做：
+做了什麼：
 
-1. **逐類通讀**：每類至少讀一半，重點看 `en` 是否為真實術語、`when`／`avoid` 是否具體、`prompt` 有沒有替別的類別做決定。元件類請核對 ARIA 屬性名稱。技術類請核對框架的指令與檔案結構。
-2. **跨類矛盾**：用 `scripts/assemble.mjs` 印出幾組不同配方的完整提示詞，從頭讀一遍找互相打架的句子。已知可疑：`web.layout.single-column` 的「文字欄寬不超過 720px」。
-3. **補 `sets`**：見下方「提示詞互相矛盾」一節的待辦。
-4. **跨檔 `related`**：子代理只能連到自己檔案內的模組。請補上跨類別的連結（例如主視覺區塊 ↔ 產品截圖、跑馬燈 ↔ 客戶標誌列）。
-5. **配方擴充到 8–12 個**：目前只有 3 個（`data/web/presets.js`）。每個網站類型至少一個；配方不可有面向衝突（validate 會擋）。寫完跑 `UPDATE_GOLDEN=1`。
-6. **預覽**：元件類有些用近似基元（進度條用分隔線、徽章與開關用籌碼）。值得的話在 `WIRE_PRIMS` 補 `progress`、`badge`、`toggle` 等基元。動態預覽在瀏覽器確認過會顯示、預設暫停；「滑鼠移上去才播放」沒有逐一看過。
-7. 禁令類上限是 8 個、現有 14 個可選；品質類上限已調為 10。可視使用情況調整。
+- **逐類通讀**：14 類全部模組由 6 個 Sonnet 子代理逐一讀過、主代理抽查差異，約 90 處修正。重點是拿掉「替別的類別做決定」的句子（陰影、圓角、行寬、字級、動畫時長）、核對 ARIA 與 APG 鍵盤操作、框架與 Tailwind v4 的寫法、WCAG 與 Core Web Vitals 數值，以及把 `avoid` 改成真實的取捨情境。
+- **跨類矛盾**：用 `scripts/assemble.mjs` 讀過 event、dashboard、saas-landing 三份完整提示詞。修了範本「虛構數字」與「禁止捏造」的矛盾（改為客戶、見證、成果數字一律標「示意」）、定價表寫死月繳年繳、緊湊密集指定字級、響應式要求所有目標 44px。
+- **`sets`**：新增 `border`（none / hairline / thick）與 `glass`（limited / used）兩個面向；標註的模組從 20 個增加到 30 個（風格 18 個全標完、形狀、禁令）。`no-default-shadows` 刻意不標：它只禁擴散淡陰影，不禁硬陰影，現有面向表達不了。
+- **`conflicts`**：`scroll-reveal` ↔ `no-fade-in-everything`、`theme-toggle` ↔ `light-only`／`dark-only`、`hero-centered` ↔ `no-generic-hero`。
+- **跨類別 `related`**：加了 271 條（雙向，每個模組最多 5 條）。
+- **配方**：3 → 12 個，每種網站類型一個，皆無面向衝突、不超過 35 個模組，golden 快照 12 份。12 份完整提示詞都從頭讀過一遍，挑選彼此打架的地方已換掉。
+- **新模組** `web.section.link-list`（連結按鈕清單）：連結集合頁的核心內容原本沒有區塊可以表達。
+- **範本**：優先順序條款加入「網站類型」（排在禁止事項之後、視覺風格之前），讓網站類型的要求能蓋過個別區塊的細節。
+- **預覽**：新增 `progress`、`badge`、`toggle` 三個線框基元，進度條、徽章、開關三個元件改用它們。
+
+子代理回報但**刻意沒處理**的議題（之後可再決定）：
+
+1. `web.color.high-contrast` 在單選組 `mode` 裡，但它其實是「疊加」用的，選了會擠掉淺色／深色設定。要改組需要動 `groups`，會影響使用者存檔。
+2. `web.section.gallery-grid`、`faq-accordion`、`feature-tabs` 自帶互動行為，和元件類的 `lightbox`、`accordion`、`tabs` 重複（不矛盾，只是重複）。
+3. `web.anti-slop.no-uniform-cards` 限制「全頁最多一個等寬卡片網格」，同時選多個卡片區塊時會靠範本的優先順序條款取捨，沒有加 `conflicts`。
+4. `web.component.sticky-cta` 與 `back-to-top` 同選時在手機上可能疊住；`alert-banner` 與 `announcement-bar` 同選時頂端兩條橫幅。
+5. `web.tech.css-modules` 的 `requires` 包含 sveltekit，但 Svelte 慣用元件內建 scoped style。
+6. `web.media.product-screenshot` 與 `device-mockups` 同選時會要求兩種外框。
+7. 頁面區塊規定至少選 3 個，但儀表板這類應用型網站其實不需要行銷區塊。dashboard 配方目前用「數字成果列、時間軸（當作最近活動）、極簡頁尾」湊滿 3 個，是妥協。可考慮依網站類型放寬下限，但要動引擎的選擇規則。
+
+其他項目：
+
+- 禁令類上限是 8 個、現有 14 個可選；品質類上限 10。可視使用情況調整。
+- 動態預覽「滑鼠移上去才播放」仍沒有逐一看過。
 
 ## 之後要再新增模組時
 
@@ -147,7 +164,7 @@ tests/                  fixture.mjs 是測試用小主題；golden/ 是三個配
 2. **面向檢查**（`data/facets.js`、`js/engine/check.js`）：模組用 `sets` 宣告自己對整站面向的要求（目前有 `shadow`、`radius`、`gradient`、`theme`）。兩個已選模組對同一面向要求不同時，右欄會出現紅色提醒，點了跳到該步驟。被個人風格接管的類別不參與。`validate.mjs` 會檢查 `sets` 的鍵與值，配方（presets）若有面向衝突也會報錯。
 3. **優先順序條款**（`data/web/template.js` 的「任務」段落）：提示詞明講牴觸時誰優先，並要求把取捨列入「我的假設」。收到提示詞的本來就是 AI，由它在執行時依規則取捨，不需要另一個 AI 先改寫。
 
-**待辦**：`sets` 目前只標了視覺風格的 12 個、間距與形狀的 6 個、色彩的 2 個。還沒標的：視覺風格其餘 6 個（terminal、luxury-minimal、hand-drawn、bauhaus、memphis、organic）、`color-blocking`、禁令類（例如 `no-purple-gradient` 應為 `gradient: "none"`、`no-default-shadows`、`no-glass-everywhere`）。標註前要讀該模組的 `prompt`，只有它明確規定時才標。需要新的面向（例如 `border`、`glass`、`motion`）就加進 `data/facets.js`。
+**狀態**：視覺風格 18 個已全部標註；面向目前有 `shadow`、`radius`、`gradient`、`theme`、`border`、`glass`（見上方「P3 收尾」）。日後新增模組時，只有 `prompt` 明確規定該面向才標；需要新的面向就加進 `data/facets.js`。
 
 若日後仍想提供「AI 潤稿」：做成選用功能，使用者自己貼金鑰、只存在瀏覽器本機；CSP 的 `connect-src` 要加上該 API 的網域。不要讓它成為產生提示詞的必要步驟。
 
@@ -189,3 +206,4 @@ tests/                  fixture.mjs 是測試用小主題；golden/ 是三個配
 - 個人風格編輯器的選填顏色（卡片底色、次要文字、點綴色）未勾選時仍顯示灰色色塊，容易誤會。
 - 預覽的字體用系統字體堆疊，Windows 上的明體、圓體樣本會和 macOS 長得不一樣。
 - 網站名稱「配方圖鑑／Prompt Field Guide」使用者已於 2026-11-16 確認。
+- 視窗寬度約 1000px 時，頁首（搜尋框與主題連結）會撐出水平捲軸。

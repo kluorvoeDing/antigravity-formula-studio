@@ -92,7 +92,7 @@ export const PREVIEW_KINDS = ["wire", "specimen", "type", "palette", "shape", "m
 export const WIRE_PRIMS = [
   "nav", "h1", "h2", "p", "btn", "btns", "link", "img", "video", "card", "cards3", "cards4",
   "logos", "quote", "avatar", "stat", "stats3", "table", "form", "input", "list", "accordion",
-  "tabs", "footer", "chip", "chips", "divider", "sidebar", "space", "price3", "cols4", "stack",
+  "tabs", "footer", "chip", "chips", "divider", "sidebar", "space", "price3", "cols4", "stack", "progress", "badge", "toggle",
 ];
 
 // 預覽可用的字體角色（對應系統字體堆疊，不為預覽載入外部字體）

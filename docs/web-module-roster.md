@@ -1,6 +1,6 @@
 # 網頁主題模組清單
 
-目標 239 個模組。✅ 表示已寫進資料檔（2026-11-16：全部完成）。
+目標 240 個模組。✅ 表示已寫進資料檔（2026-11-16 完成 239 個；2026-11-17 補上 link-list）。
 `id` 的完整形式是 `web.<類別>.<slug>`。中英名稱是建議，撰寫時若發現更通行的說法可以調整，但 `slug` 定了就不要改。
 寫法見 `docs/AUTHORING.md`，流程見 `docs/HANDOFF.md` 的「P3」。
 
@@ -36,7 +36,7 @@
 ✅ scrollytelling 捲動敘事 / Scrollytelling
 ✅ horizontal-scroll 橫向捲動 / Horizontal Scroll Layout
 
-## 03 section 頁面區塊（有序複選 3–12，37）
+## 03 section 頁面區塊（有序複選 3–12，38）
 
 導覽
 ✅ navbar-sticky 固定頂部導覽列 / Sticky Navbar
@@ -88,6 +88,7 @@
 頁尾
 ✅ footer-columns 多欄頁尾 / Multi-Column Footer
 ✅ footer-minimal 極簡頁尾 / Minimal Footer
+✅ link-list 連結按鈕清單 / Link List
 
 ## 04 component 元件與互動模式（複選 0–8，30）
 

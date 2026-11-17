@@ -5,4 +5,6 @@ export const FACETS = {
   radius: { zh: "圓角", values: { sharp: "直角", rounded: "圓角", pill: "全圓角" } },
   gradient: { zh: "漸層", values: { none: "不用漸層", used: "使用漸層" } },
   theme: { zh: "深淺色", values: { light: "淺色", dark: "深色" } },
+  border: { zh: "邊框", values: { none: "不用邊框", hairline: "細線邊框（1px）", thick: "粗框（2px 以上）" } },
+  glass: { zh: "毛玻璃", values: { limited: "最多一處毛玻璃", used: "大量使用毛玻璃" } },
 };

@@ -18,7 +18,7 @@
 .pv-mobile { aspect-ratio: 9 / 16; max-height: 100%; margin-inline: auto; }
 
 .pv-rowline { display: flex; gap: 4%; flex: 1 1 0; min-height: 0; align-items: stretch; }
-.pv-rowline:has(> .pv-nav, > .pv-h1, > .pv-h2, > .pv-p, > .pv-logos, > .pv-tabs, > .pv-footer, > .pv-divider, > .pv-btn, > .pv-btns, > .pv-chips, > .pv-link) { flex: 0 0 auto; }
+.pv-rowline:has(> .pv-nav, > .pv-h1, > .pv-h2, > .pv-p, > .pv-logos, > .pv-tabs, > .pv-footer, > .pv-divider, > .pv-btn, > .pv-btns, > .pv-chips, > .pv-link, > .pv-progress, > .pv-badge, > .pv-toggle) { flex: 0 0 auto; }
 
 .pv-cell {
   flex: var(--span, 1) 1 0;
@@ -53,6 +53,13 @@
 .pv-is-hl .pv-rule, .is-hl .pv-rule { border-bottom-color: var(--c); }
 .pv-chev { width: 5px; height: 5px; border-width: 0 1.5px 1.5px 0; background: none; transform: rotate(-45deg); border-radius: 0; flex: none; }
 .pv-chev.pv-open { transform: rotate(45deg); }
+.pv-track { height: 8px; width: 100%; border-radius: 4px; overflow: hidden; }
+.pv-fill { height: 100%; width: 62%; background: var(--c); }
+.pv-badge { width: 18px; height: 10px; }
+.pv-switch { width: 28px; height: 15px; border-radius: 8px; flex: none; position: relative; }
+.pv-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.pv-switch.pv-on { background: var(--c); }
+.pv-switch.pv-on::after { left: auto; right: 2px; background: var(--pv-paper); }
 
 .pv-img {
   flex: 1;

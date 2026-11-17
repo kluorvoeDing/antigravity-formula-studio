@@ -41,6 +41,9 @@ const PRIMS = {
   sidebar: () => [line("70%"), line("50%"), line("60%"), line("44%"), line("56%")],
   space: () => [],
   price3: () => times(3, (i) => h("span", { class: ["pv-card pv-price", i === 1 && "pv-featured"] }, line("40%"), line("56%"), line("80%"), line("72%"), box("pv-pill pv-solid"))),
+  progress: () => [h("span", { class: "pv-row" }, line("30%"), h("span", { class: "pv-grow" }), line("12%")), h("i", { class: "pv-box pv-track" }, h("i", { class: "pv-fill" }))],
+  badge: () => [h("span", { class: "pv-row" }, line("36%"), box("pv-pill pv-solid pv-badge"))],
+  toggle: () => times(2, (i) => h("span", { class: "pv-row" }, line(i ? "34%" : "46%"), h("span", { class: "pv-grow" }), box(i === 0 ? "pv-switch pv-on" : "pv-switch"))),
   cols4: () => times(4, () => h("span", { class: "pv-col" }, line("50%"), line("74%"), line("62%"), line("68%"))),
 };
 

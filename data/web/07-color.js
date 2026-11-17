@@ -20,7 +20,7 @@ export default {
       accept: "除狀態色外，整個介面只有一種彩色，且它只出現在可互動或需強調的元素上。",
       group: "scheme",
       tags: ["極簡", "專業", "入門"],
-      related: ["web.color.duotone"],
+      related: ["web.color.duotone", "web.style.swiss-minimal"],
       preview: { kind: "palette", colors: [{ hex: "#ffffff", name: "背景", share: 60 }, { hex: "#e5e5e5", name: "邊框", share: 12 }, { hex: "#171717", name: "文字", share: 20 }, { hex: "#2563eb", name: "強調", share: 8 }] },
     },
     {
@@ -36,7 +36,7 @@ export default {
       group: "scheme",
       tags: ["大膽", "活潑", "進階"],
       related: ["web.color.mono-accent"],
-      preview: { kind: "palette", colors: [{ hex: "#ff4d2e", name: "主色一", share: 50 }, { hex: "#12305c", name: "主色二", share: 40 }, { hex: "#ffffff", name: "留白", share: 10 }] },
+      preview: { kind: "palette", colors: [{ hex: "#ff7a59", name: "主色一", share: 50 }, { hex: "#12305c", name: "主色二", share: 40 }, { hex: "#ffffff", name: "留白", share: 10 }] },
     },
     {
       id: "web.color.black-and-white",
@@ -81,7 +81,7 @@ export default {
       group: "scheme",
       tags: ["入門", "專業", "樣式"],
       related: ["web.color.brand-led", "web.color.analogous"],
-      preview: { kind: "palette", colors: [{ hex: "#f7f3ec", name: "主調", share: 60 }, { hex: "#2f4858", name: "輔助色", share: 30 }, { hex: "#e8602c", name: "點綴色", share: 10 }] },
+      preview: { kind: "palette", colors: [{ hex: "#f7f3ec", name: "主調", share: 60 }, { hex: "#2f4858", name: "輔助色", share: 30 }, { hex: "#c2410c", name: "點綴色", share: 10 }] },
     },
     {
       id: "web.color.pastel",
@@ -95,7 +95,7 @@ export default {
       accept: "所有放在粉彩底上的文字都是深色且對比達 4.5:1，沒有白字疊在粉彩色上。",
       group: "scheme",
       tags: ["活潑", "溫暖", "插畫"],
-      related: ["web.color.vibrant-multicolor"],
+      related: ["web.color.vibrant-multicolor", "web.style.y2k"],
       preview: { kind: "palette", colors: [{ hex: "#f9d5e5", name: "淡粉", share: 25 }, { hex: "#cde4f7", name: "淡藍", share: 25 }, { hex: "#d4f0dc", name: "淡綠", share: 20 }, { hex: "#fdf1c7", name: "淡黃", share: 15 }, { hex: "#2d2a32", name: "深色字", share: 15 }] },
     },
     {
@@ -110,7 +110,7 @@ export default {
       accept: "介面沒有螢光色或高飽和的藍、紫，且內文與主要按鈕的文字對比都達 4.5:1。",
       group: "scheme",
       tags: ["溫暖", "電商", "樣式"],
-      related: ["web.color.analogous", "web.color.tinted-neutrals"],
+      related: ["web.color.analogous", "web.color.tinted-neutrals", "web.style.organic"],
       preview: { kind: "palette", colors: [{ hex: "#f3ece0", name: "米白", share: 45 }, { hex: "#b5603c", name: "陶土", share: 15 }, { hex: "#6b7a3a", name: "橄欖綠", share: 15 }, { hex: "#3b2a20", name: "深棕", share: 25 }] },
     },
     {
@@ -125,8 +125,8 @@ export default {
       accept: "每個彩色都對應固定的分類或用途，且所有彩色底上的文字對比都達 4.5:1。",
       group: "scheme",
       tags: ["活潑", "大膽", "插畫"],
-      related: ["web.color.pastel"],
-      preview: { kind: "palette", colors: [{ hex: "#ffffff", name: "背景", share: 40 }, { hex: "#ef3e36", name: "紅", share: 12 }, { hex: "#ffc400", name: "黃", share: 12 }, { hex: "#17b978", name: "綠", share: 12 }, { hex: "#2e6cf6", name: "藍", share: 12 }, { hex: "#8f3ff0", name: "紫", share: 12 }] },
+      related: ["web.color.pastel", "web.style.neo-brutalism"],
+      preview: { kind: "palette", colors: [{ hex: "#ffffff", name: "背景", share: 65 }, { hex: "#ef3e36", name: "紅", share: 7 }, { hex: "#ffc400", name: "黃", share: 7 }, { hex: "#17b978", name: "綠", share: 7 }, { hex: "#2e6cf6", name: "藍", share: 7 }, { hex: "#8f3ff0", name: "紫", share: 7 }] },
     },
     {
       id: "web.color.tinted-neutrals",
@@ -136,7 +136,7 @@ export default {
       what: "背景、邊框與文字的灰階都摻了一點品牌色，例如偏暖的米灰或偏冷的藍灰，比純灰更有溫度。",
       when: ["介面以大量灰階為主，純灰顯得冰冷死板", "想讓中性色與品牌色看起來屬於同一家族"],
       avoid: ["商品照片的色準很重要，有色背景會讓商品看起來偏色", "頁面要與第三方嵌入元件的純灰並排出現"],
-      prompt: "所有中性色（背景、表面、邊框、次要文字、主要文字）都從同一個色相調出：以品牌主色的色相為基準，飽和度壓在約 3% 到 10%，只改變明度，做出 6 到 8 階，不混用純灰。強調色另外處理，不受此限。文字對比達 4.5:1。",
+      prompt: "所有中性色（背景、表面、邊框、次要文字、主要文字）都從同一個色相調出：以品牌主色（未指定則自選）的色相為基準，OKLCH 色度約 0.005 到 0.02，只改變明度，做出 6 到 8 階，不混用純灰。強調色另外處理，不受此限。文字對比達 4.5:1。",
       accept: "取樣任一背景、邊框或文字的灰色，色相一致且飽和度大於零，沒有純灰。",
       group: "scheme",
       tags: ["極簡", "專業", "樣式"],
@@ -186,7 +186,7 @@ export default {
       accept: "切換按鈕可在兩種模式間切換，重新整理後維持上次的選擇，兩種模式的文字對比都達 4.5:1。",
       group: "mode",
       tags: ["深色", "淺色", "進階"],
-      related: ["web.color.light-only"],
+      related: ["web.color.light-only", "web.component.theme-toggle"],
       preview: { kind: "palette", colors: [{ hex: "#ffffff", name: "淺色背景", share: 35 }, { hex: "#111827", name: "淺色文字", share: 15 }, { hex: "#18181b", name: "深色背景", share: 35 }, { hex: "#f4f4f5", name: "深色文字", share: 15 }] },
     },
     {
@@ -202,7 +202,7 @@ export default {
       group: "mode",
       sets: { theme: "dark" },
       tags: ["深色", "科技", "樣式"],
-      related: ["web.color.high-contrast"],
+      related: ["web.color.high-contrast", "web.style.dark-tech", "web.style.terminal"],
       preview: { kind: "palette", colors: [{ hex: "#121212", name: "背景", share: 50 }, { hex: "#1e1e1e", name: "表面", share: 20 }, { hex: "#2a2a2a", name: "浮層", share: 10 }, { hex: "#e6e6e6", name: "內文", share: 15 }, { hex: "#8ab4f8", name: "強調", share: 5 }] },
     },
     {
@@ -217,7 +217,7 @@ export default {
       accept: "開啟系統的提高對比設定後，內文對比達 7:1，且每個可聚焦元素都有可見的焦點框。",
       group: "mode",
       tags: ["無障礙", "進階", "樣式"],
-      related: ["web.color.dark-only"],
+      related: ["web.color.dark-only", "web.quality.a11y-basics"],
       preview: { kind: "palette", colors: [{ hex: "#000000", name: "黑底", share: 45 }, { hex: "#ffffff", name: "白字", share: 35 }, { hex: "#ffff00", name: "連結", share: 12 }, { hex: "#00ffff", name: "焦點框", share: 8 }] },
     },
   ],

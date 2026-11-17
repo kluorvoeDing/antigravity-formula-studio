@@ -1,9 +1,10 @@
 // 使用者操作 → 狀態變更。所有規則都交給 engine 的純函式。
 import { indexDomain, defaultRecipe } from "./engine/domain.js";
 import { toggle, reorder, applyPreset } from "./engine/select.js";
-import { sanitizeStyle } from "./persist.js";
+import { randomRecipe } from "./engine/random.js";
+import { sanitizeStyle, importData, decodeShare } from "./persist.js";
 
-export function createActions(store, domain, { toast, confirm }) {
+export function createActions(store, domain, { toast, confirm, builtinStyles = [] }) {
   const ix = indexDomain(domain);
   const name = (id) => ix.modules.get(id)?.module.zh ?? id;
   const setRecipe = (recipe) => store.set({ recipe });
@@ -91,6 +92,39 @@ export function createActions(store, domain, { toast, confirm }) {
 
     setManual(text) {
       store.set({ manualText: text });
+    },
+
+    rollDice() {
+      const { recipe } = store.get();
+      store.set({ recipe: randomRecipe(domain, recipe), manualText: null, rev: bump() });
+      toast("已擲出一份隨機配方，簡述與個人風格保留不變");
+    },
+
+    /** 匯入匯出檔（已解析的 JSON）。回傳是否成功。 */
+    importJson(json) {
+      const result = importData(json, domain, builtinStyles, store.get().styles);
+      if (!result) {
+        toast("這不是配方圖鑑匯出的檔案，或檔案裡沒有網頁主題的配方");
+        return false;
+      }
+      if (!confirm("匯入會取代目前的配方與專案簡述，自訂的個人風格會合併。要繼續嗎？")) return false;
+      store.set({ recipe: result.recipe, styles: result.styles, manualText: null, rev: bump() });
+      toast(result.dropped ? `已匯入配方，略過 ${result.dropped} 個無法辨識的項目` : "已匯入配方");
+      return true;
+    },
+
+    /** 套用分享連結裡的選取；簡述、個人風格與「不明確時」設定維持不變。 */
+    applyShare(text) {
+      const shared = decodeShare(domain, text);
+      if (!shared || !Object.keys(shared.picks).length) {
+        toast("分享連結無法辨識，已略過");
+        return;
+      }
+      const { recipe } = store.get();
+      const hasWork = Object.keys(recipe.picks).some((id) => !domain.categories.find((c) => c.id === id)?.groups.every((g) => g.defaults));
+      if (hasWork && !confirm("要用分享連結裡的配方取代你目前的選取嗎？專案簡述會保留。")) return;
+      store.set({ recipe: { ...recipe, picks: shared.picks }, manualText: null, rev: bump() });
+      toast(shared.dropped.length ? `已套用分享的配方，略過 ${shared.dropped.length} 個無法辨識的項目` : "已套用分享的配方");
     },
   };
 }

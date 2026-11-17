@@ -182,6 +182,12 @@ export function mountCatalog(el, store, domain, actions, { highlight, editStyle,
         h("header", { class: "category-head" }, h("h2", {}, "從現成配方開始"), h("p", {}, "先套用一組完整的選擇，再到各步驟替換成你要的。套用會取代目前已選的模組。")),
         h(
           "div",
+          { class: "dice" },
+          h("div", {}, h("h3", {}, "靈感骰子"), h("p", {}, "還沒有方向？隨機擲出一份符合規則、沒有衝突的配方，看看會組出什麼。簡述與個人風格會保留。")),
+          h("button", { type: "button", class: "ghost", on: { click: () => actions.rollDice() } }, "擲一次"),
+        ),
+        h(
+          "div",
           { class: "presets" },
           domain.presets.map((preset) =>
             h(

@@ -10,6 +10,8 @@ import { mountSteps } from "./ui/steps.js";
 import { mountCatalog } from "./ui/catalog.js";
 import { mountRecipe } from "./ui/recipe.js";
 import { createStyleEditor } from "./ui/style-editor.js";
+import { mountThemeToggle } from "./ui/theme.js";
+import { createDrawer } from "./ui/drawer.js";
 
 const domain = (await registry.web()).default;
 
@@ -20,15 +22,20 @@ if (fromHash) initial.stepId = fromHash;
 
 const store = createStore(initial);
 const toast = createToast(document.body);
-const actions = createActions(store, domain, { toast, confirm: (message) => window.confirm(message) });
+const actions = createActions(store, domain, { toast, confirm: (message) => window.confirm(message), builtinStyles });
 const styleEditor = createStyleEditor(document.body, actions);
+const drawer = createDrawer(document.getElementById("recipe"), { copy: () => recipeView.copy() });
 
 const stepIndex = (id) => domain.steps.findIndex((s) => s.id === id);
 const setHue = (state) => (document.body.dataset.hue = String(stepIndex(state.stepId)));
 setHue(initial);
 
 mountSteps(document.getElementById("steps"), store, domain, actions);
-const recipeView = mountRecipe(document.getElementById("recipe"), store, domain, actions, toast);
+const recipeView = mountRecipe(document.getElementById("recipe"), store, domain, actions, toast, {
+  openModule: (id) => openModule(id),
+  builtinStyles,
+  onUpdate: (info) => drawer.update(info),
+});
 const searchInput = document.getElementById("search");
 const setQuery = (query) => {
   if (searchInput.value !== query) searchInput.value = query;
@@ -46,17 +53,18 @@ searchInput.addEventListener("keydown", (event) => {
 function openModule(moduleId) {
   const entry = indexDomain(domain).modules.get(moduleId);
   if (!entry) return;
+  drawer.close();
   const step = domain.steps.find((s) => s.categories?.includes(entry.category.id));
   setQuery("");
   if (step) actions.goStep(step.id);
-  requestAnimationFrame(() => {
+  setTimeout(() => {
     const card = document.getElementById(`m-${moduleId}`);
     if (!card) return;
     card.scrollIntoView({ block: "center" });
     card.querySelector(".add")?.focus({ preventScroll: true });
     card.classList.add("is-flash");
     setTimeout(() => card.classList.remove("is-flash"), 1600);
-  });
+  }, 0);
 }
 
 mountCatalog(document.getElementById("catalog"), store, domain, actions, {
@@ -64,6 +72,8 @@ mountCatalog(document.getElementById("catalog"), store, domain, actions, {
   editStyle: (style) => styleEditor.open(style),
   openModule,
 });
+
+mountThemeToggle(document.getElementById("theme-toggle"));
 
 let saveTimer;
 store.subscribe((state, prev) => {
@@ -75,6 +85,13 @@ store.subscribe((state, prev) => {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => writeStorage(STORAGE_KEY, snapshot(state, builtinStyles)), 300);
 });
+
+// 分享連結：?r=模組清單。套用後從網址移除，避免重新整理時再套用一次。
+const params = new URLSearchParams(location.search);
+if (params.has("r")) {
+  actions.applyShare(params.get("r") ?? "");
+  history.replaceState(null, "", `${location.pathname}${location.hash}`);
+}
 
 window.addEventListener("popstate", () => {
   const stepId = parseHash(location.hash, domain);

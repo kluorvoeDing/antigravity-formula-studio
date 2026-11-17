@@ -8,6 +8,7 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'none'"
     />
     <title>配方圖鑑：模組化提示詞組裝器</title>
+    <script src="js/theme-init.js"></script>
     <meta name="description" content="一步一步挑選模組，組出一份任何 AI 都看得懂的完整規格。每個模組都教你一個名詞：長什麼樣、何時用、何時別用。" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -33,6 +34,7 @@
         <span class="sr">搜尋名詞</span>
         <input id="search" type="search" placeholder="搜尋名詞：hero、定價、視差…（按 / ）" autocomplete="off" />
       </label>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false">深色模式</button>
       <a class="top-link" href="showreel.html">30 秒 Showreel</a>
     </header>
     <div class="shell">

@@ -96,6 +96,60 @@ export function snapshot(state, builtinStyles) {
   };
 }
 
+// ───────── 匯出、匯入 ─────────
+export const EXPORT_KIND = "prompt-field-guide";
+
+/** 匯出檔的內容：與本機儲存相同，加上檔案種類標記。 */
+export function exportData(state, builtinStyles) {
+  return { kind: EXPORT_KIND, ...snapshot(state, builtinStyles) };
+}
+
+/**
+ * 讀取匯出檔。檔案種類不對或沒有這個主題的配方時回傳 null。
+ * 配方與風格都經過清理；同 id 的自訂風格以匯入的為準。
+ * @returns {{ recipe: object, styles: object[], dropped: number } | null}
+ */
+export function importData(json, domain, builtinStyles, currentStyles) {
+  if (!json || typeof json !== "object" || json.kind !== EXPORT_KIND) return null;
+  const raw = json.recipes && typeof json.recipes === "object" ? json.recipes[domain.id] : null;
+  if (!raw || typeof raw !== "object") return null;
+  const { dropped } = sanitize(domain, raw);
+  const restored = restore(json, domain, builtinStyles);
+  const builtin = new Set(builtinStyles.map((s) => s.id));
+  const merged = new Map(currentStyles.filter((s) => !builtin.has(s.id)).map((s) => [s.id, s]));
+  for (const style of restored.styles) if (!builtin.has(style.id)) merged.set(style.id, style);
+  const styles = [...builtinStyles, ...merged.values()].slice(0, builtinStyles.length + 30);
+  const recipe = restored.recipe;
+  if (raw.styleId && styles.some((s) => s.id === raw.styleId)) recipe.styleId = raw.styleId;
+  return { recipe, styles, dropped: dropped.length };
+}
+
+// ───────── 分享連結 ─────────
+// 只放模組 id（省略主題前綴、以逗號串接），不放簡述文字與個人風格。
+const SHARE_MAX = 4000;
+
+export function encodeShare(domain, recipe) {
+  const prefix = `${domain.id}.`;
+  return domain.categories
+    .flatMap((c) => recipe.picks[c.id] ?? [])
+    .map((id) => (id.startsWith(prefix) ? id.slice(prefix.length) : id))
+    .join(",");
+}
+
+/** @returns {{ picks: object, dropped: string[] } | null} */
+export function decodeShare(domain, text) {
+  if (typeof text !== "string" || !text || text.length > SHARE_MAX) return null;
+  const picks = Object.create(null); // 避免 "__proto__"、"constructor" 這類鍵名撞到原型
+  for (const part of text.split(",").slice(0, 120)) {
+    const slug = part.trim();
+    if (!slug) continue;
+    const categoryId = slug.split(".")[0];
+    (picks[categoryId] ??= []).push(`${domain.id}.${slug}`);
+  }
+  const { recipe, dropped } = sanitize(domain, { picks });
+  return { picks: recipe.picks, dropped };
+}
+
 export function readStorage(key) {
   try {
     const raw = localStorage.getItem(key);

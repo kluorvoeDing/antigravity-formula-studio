@@ -11,6 +11,33 @@
   --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
   --font-en: "Bricolage Grotesque", "Noto Sans TC", system-ui, sans-serif;
   --hue: #e9e9e6;
+  --card: #ffffff;
+  --faint: #8a8a8a;
+  --danger: #b3261e;
+  --on-hue: #161616; /* 色塊上的字：深淺色模式都維持深色 */
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #f1f0ec;
+  --soft: #a9a9a4;
+  --paper: #141414;
+  --panel: #232321;
+  --card: #1c1c1b;
+  --faint: #8c8c87;
+  --danger: #ff8a80;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ink: #f1f0ec;
+    --soft: #a9a9a4;
+    --paper: #141414;
+    --panel: #232321;
+    --card: #1c1c1b;
+    --faint: #8c8c87;
+    --danger: #ff8a80;
+  }
 }
 
 [data-hue="0"] { --hue: #e9e9e6; }

@@ -1,0 +1,14 @@
+# Flow 設定（在介面上選，不用貼）
+- 素材參考（Ingredients to Video）：在 Video 選 Ingredients，上傳參考圖或影片，提示詞中用 @ 引用各個素材並說明誰做什麼。使用 Lite 或 Fast 模型時，Ingredients 的片長固定為 8 秒。
+- 橫式 16:9（Landscape 16:9）：在專案設定把畫面比例選為 16:9。構圖時主體放在畫面中央或三分線上，左右保留空間，景別與運鏡的描述也以橫向畫面來想。
+- 8 秒標準片段（8-Second Clip）：在介面把片長設為 8 秒（Veo 3.1 與 Omni Flash 1.2 都可選；Ingredients 搭配 Lite 或 Fast 時固定為 8 秒）。提示詞可寫一個有開頭與結尾的小動作，並說明運鏡的起點與終點。
+- 下面每一段英文各生成一個片段：一次貼一段，不同鏡頭分開生成，再用 Scenebuilder 排成一整段。
+
+## Shot prompts (one paragraph per clip)
+### Shot 1
+Medium shot framing the subject from the waist up. Tracking shot with the camera moving alongside the subject at a steady distance. @fox is a small orange fox with a green scarf, from the reference image. @fox walks through a snowy forest and stops at a frozen pond. Stylized 3D animation with smooth rounded characters, clean colors and polished rendering. The character speaks clearly in a natural tone, with lip movements matching the spoken words. Soft instrumental background music that follows the mood of the scene.
+### Shot 2
+Medium shot framing the subject from the waist up. Tracking shot with the camera moving alongside the subject at a steady distance. @fox is a small orange fox with a green scarf, from the reference image. @fox looks at its reflection and says: I finally found it. Stylized 3D animation with smooth rounded characters, clean colors and polished rendering. The character speaks clearly in a natural tone, with lip movements matching the spoken words. Soft instrumental background music that follows the mood of the scene.
+
+## Negative prompt
+Exclude: on-screen text, subtitles, captions, watermarks, logos, brand marks, distorted hands, extra fingers, warped faces, deformed limbs

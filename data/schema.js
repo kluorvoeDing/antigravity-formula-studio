@@ -130,7 +130,7 @@ export const LIMITS = {
 export const BANNED = {
   agent: ["Claude", "ChatGPT", "GPT", "Codex", "Antigravity", "Gemini", "Copilot", "Artifact"],
   reference: ["上述", "前述", "剛才", "上一則", "附件", "這個對話", "如上"],
-  repo: ["showreel", "render_video", "generate_audio", "SciPy"],
+  repo: ["showreel.html", "render_video", "generate_audio", "SciPy"],
 };
 
 // what 欄位不得使用的空泛形容詞

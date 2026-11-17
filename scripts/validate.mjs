@@ -156,7 +156,8 @@ function checkModule(errors, module, category, domain, groupIds) {
   if (typeof module.id !== "string" || !ID_RE.test(module.id)) errors.push(`${where}：id 格式錯誤`);
   else if (!module.id.startsWith(prefix)) errors.push(`${where}：id 必須以 ${prefix} 開頭`);
 
-  const english = domain.template?.lang === "en";
+  // 英文範本：被英文零件使用的類別需要 promptEn；被標成 lang: "zh" 的零件使用的類別需要 prompt。
+  const english = domain.template?.lang === "en" && !(domain.zhCategories ?? new Set()).has(category.id);
   for (const field of ["zh", "en", "what", english ? "promptEn" : "prompt"]) {
     if (typeof module[field] !== "string" || !module[field].trim()) errors.push(`${where}：缺少 ${field}`);
   }
@@ -221,6 +222,10 @@ function checkModule(errors, module, category, domain, groupIds) {
 
 /** 檢查一個主題的全部資料。回傳 { errors, warnings, count }。 */
 export function validateDomain(domain, { allowEmpty = false } = {}) {
+  domain = {
+    ...domain,
+    zhCategories: new Set(domain.template.sections.flatMap((s) => s.parts.filter((p) => p.lang === "zh").flatMap(partCategories))),
+  };
   const errors = [];
   const warnings = [];
   const ids = new Set();

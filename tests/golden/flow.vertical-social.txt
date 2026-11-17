@@ -1,0 +1,14 @@
+# Flow 設定（在介面上選，不用貼）
+- 純文字生成（Text to Video）：在 Flow 的 Video 選純文字生成，不附任何素材，只貼下方的英文提示詞。因為模型沒有圖片可以參考，主體外貌、動作與場景都要寫進提示詞，人物的衣著與年齡寫完整。
+- 直式 9:16（Vertical 9:16）：在專案設定把畫面比例選為 9:16。主體放在畫面中央偏上，景別以中景與特寫為主，動作盡量沿垂直方向發生，避免需要大量左右空間的橫向構圖。
+- 4 到 6 秒短片段（Short Clip）：在介面把片長設為 4 到 6 秒（Veo 3.1 提供 4 與 6 秒，Omni Flash 1.2 可設 3 到 10 秒）。每段只寫一個動作與一個運鏡，不要在同一段提示詞塞入多個事件。
+- 下面每一段英文各生成一個片段：一次貼一段，不同鏡頭分開生成，再用 Scenebuilder 排成一整段。
+
+## Shot prompts (one paragraph per clip)
+### Shot 1
+Close-up shot filling the frame with the subject's face and expression. Handheld camera with subtle natural shake, following the action in a documentary feel. Hands knead a ball of dough on a floured table. A small home kitchen with a window and a wooden table. Documentary style with natural available light and unposed, observational framing. Overcast daylight with soft, even light, minimal shadows and muted natural colors. Ambient noise: soft room tone with distant, indistinct sounds that suit the location. SFX: sounds that match the on-screen action, such as footsteps, door creaks and object impacts.
+### Shot 2
+Close-up shot filling the frame with the subject's face and expression. Handheld camera with subtle natural shake, following the action in a documentary feel. A tray of bread rolls goes into a hot oven. A small home kitchen with a window and a wooden table. Documentary style with natural available light and unposed, observational framing. Overcast daylight with soft, even light, minimal shadows and muted natural colors. Ambient noise: soft room tone with distant, indistinct sounds that suit the location. SFX: sounds that match the on-screen action, such as footsteps, door creaks and object impacts.
+
+## Negative prompt
+Exclude: on-screen text, subtitles, captions, watermarks, logos, brand marks, extra people, crowds, bystanders in the background

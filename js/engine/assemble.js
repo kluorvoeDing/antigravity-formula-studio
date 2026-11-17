@@ -17,7 +17,8 @@ const phrase = (module, en) => (en ? module.promptEn : module.prompt);
 /** 範本零件引用到的類別。 */
 export function partCategories(part) {
   if (part.kind === "modules") return [part.category];
-  if (part.kind === "merged" || part.kind === "shots") return part.categories ?? [];
+  if (part.kind === "merged") return part.categories ?? [];
+  if (part.kind === "shots") return [...(part.before ?? []), ...(part.categories ?? [])];
   return [];
 }
 
@@ -78,7 +79,8 @@ function renderPart(part, ctx) {
       if (overridden.has(part.category)) return [];
       const entries = orderedPicks(ix, recipe, part.category);
       const format = part.format ?? "bullets";
-      const lines = entries.map(({ module }) => ({ text: moduleLine(module, part.prefix, en), format, moduleId: module.id }));
+      const english = en && part.lang !== "zh";
+      const lines = entries.map(({ module }) => ({ text: moduleLine(module, part.prefix, english), format, moduleId: module.id }));
       if (!entries.length && part.missing) {
         const category = ix.categories.get(part.category);
         if (category?.groups.some((g) => g.min > 0)) lines.push({ text: part.missing, format: "bullets" });
@@ -91,7 +93,7 @@ function renderPart(part, ctx) {
       const lead = part.field ? (brief[part.field] ?? "").trim() : "";
       const pieces = [lead && (part.quote ? `「${lead}」` : lead), ...entries.map(({ module }) => phrase(module, en))].filter(Boolean);
       if (!pieces.length) return part.missing ? [{ text: `${part.label}${en ? ": " : "："}${part.missing}`, format: part.format ?? "plain" }] : [];
-      const text = `${part.label}${en ? ": " : "："}${pieces.join(en ? "; " : "；")}`;
+      const text = `${part.label}${en ? ": " : "："}${pieces.join(en ? ", " : "；")}`;
       return [{ text, format: part.format ?? "plain", moduleIds: entries.map(({ module }) => module.id) }];
     }
     case "shots": {
@@ -99,14 +101,25 @@ function renderPart(part, ctx) {
       const raw = (brief[part.field] ?? "").split(/\n+/).map((s) => s.trim()).filter(Boolean).slice(0, part.max ?? 8);
       const fallback = part.fallback ? (brief[part.fallback] ?? "").trim() : "";
       const shots = raw.length ? raw : fallback ? [fallback] : [part.placeholder];
-      const entries = picksOf(ctx, part.categories);
-      const shared = entries.map(({ module }) => phrase(module, en)).join(" ");
-      const ids = entries.map(({ module }) => module.id);
+      // 段落順序：前置模組（景別、運鏡）→ lead 欄位（主體）→ 鏡頭描述（動作）→ fields 欄位（場景）→ 其餘模組（風格、光線、聲音）。
+      const sentence = (text) => (/[.!?。！？]$/.test(text) ? text : `${text}.`);
+      const before = picksOf(ctx, part.before ?? []);
+      const after = picksOf(ctx, part.categories ?? []);
+      const briefLines = (keys) => (keys ?? []).map((f) => (brief[f] ?? "").trim()).filter(Boolean).map(sentence);
+      const lead = briefLines(part.lead);
+      const fields = briefLines(part.fields);
+      const ids = [...before, ...after].map(({ module }) => module.id);
       return shots.flatMap((shot, i) => {
-        const body = /[.!?。！？]$/.test(shot) ? shot : `${shot}.`;
+        const text = [
+          ...before.map(({ module }) => phrase(module, en)),
+          ...lead,
+          sentence(shot),
+          ...fields,
+          ...after.map(({ module }) => phrase(module, en)),
+        ].join(" ");
         return [
           { text: `${part.label} ${i + 1}`, format: "heading" },
-          { text: shared ? `${body} ${shared}` : body, format: "plain", moduleIds: ids },
+          { text, format: "plain", moduleIds: ids },
         ];
       });
     }

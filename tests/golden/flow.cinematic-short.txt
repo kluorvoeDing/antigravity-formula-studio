@@ -1,0 +1,16 @@
+# Flow 設定（在介面上選，不用貼）
+- 純文字生成（Text to Video）：在 Flow 的 Video 選純文字生成，不附任何素材，只貼下方的英文提示詞。因為模型沒有圖片可以參考，主體外貌、動作與場景都要寫進提示詞，人物的衣著與年齡寫完整。
+- 橫式 16:9（Landscape 16:9）：在專案設定把畫面比例選為 16:9。構圖時主體放在畫面中央或三分線上，左右保留空間，景別與運鏡的描述也以橫向畫面來想。
+- 8 秒標準片段（8-Second Clip）：在介面把片長設為 8 秒（Veo 3.1 與 Omni Flash 1.2 都可選；Ingredients 搭配 Lite 或 Fast 時固定為 8 秒）。提示詞可寫一個有開頭與結尾的小動作，並說明運鏡的起點與終點。
+- 下面每一段英文各生成一個片段：一次貼一段，不同鏡頭分開生成，再用 Scenebuilder 排成一整段。
+
+## Shot prompts (one paragraph per clip)
+### Shot 1
+Medium shot framing the subject from the waist up. The camera slowly dollies in toward the subject, keeping them centered in frame. A woman in her 30s with short black hair, wearing a navy apron over a white shirt. She pours latte art into a white cup at the counter. A small café at dawn with a warm wooden interior and a quiet street outside the window. Shot on 35mm film with soft grain and natural, slightly warm color. Golden hour lighting with warm low sunlight, long soft shadows and a gentle glow. Ambient noise: soft room tone with distant, indistinct sounds that suit the location.
+### Shot 2
+Medium shot framing the subject from the waist up. The camera slowly dollies in toward the subject, keeping them centered in frame. A woman in her 30s with short black hair, wearing a navy apron over a white shirt. She slides the cup across the counter and smiles at a customer. A small café at dawn with a warm wooden interior and a quiet street outside the window. Shot on 35mm film with soft grain and natural, slightly warm color. Golden hour lighting with warm low sunlight, long soft shadows and a gentle glow. Ambient noise: soft room tone with distant, indistinct sounds that suit the location.
+### Shot 3
+Medium shot framing the subject from the waist up. The camera slowly dollies in toward the subject, keeping them centered in frame. A woman in her 30s with short black hair, wearing a navy apron over a white shirt. She looks out the window as the street outside slowly wakes up. A small café at dawn with a warm wooden interior and a quiet street outside the window. Shot on 35mm film with soft grain and natural, slightly warm color. Golden hour lighting with warm low sunlight, long soft shadows and a gentle glow. Ambient noise: soft room tone with distant, indistinct sounds that suit the location.
+
+## Negative prompt
+Exclude: on-screen text, subtitles, captions, watermarks, logos, brand marks
